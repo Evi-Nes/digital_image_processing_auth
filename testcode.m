@@ -1,68 +1,65 @@
+% Load the raw image
 filename = "RawImage.DNG";
+[raw_im, XYZ2Cam, wbcoeffs] = readdng (filename);
 
-obj = Tiff(filename ,'r');
-offsets = getTag(obj ,'SubIFD');
-setSubDirectory(obj , offsets (1));
-rawim = read(obj);
+tiff_info = imfinfo(filename);
 
-%% Load Metadata
-meta_info = imfinfo(filename);
+% Set the size of the image
+rows = tiff_info.Height;
+cols = tiff_info.Width;
 
-y_origin = meta_info.SubIFDs{1}.ActiveArea(1) +1;
-x_origin = meta_info.SubIFDs{1}.ActiveArea(2) +1;
+% Define the Bayer filter pattern
+Bayer = [2 1; 1 3];
 
-% width and height of the image (the useful part of array rawim )
-width = meta_info.SubIFDs{1}.DefaultCropSize(1);
-height = meta_info.SubIFDs{1}.DefaultCropSize(2);
+% Initialize output image
+rgb_img = zeros(rows,cols,3);
+bayertype = 'rggb';
 
-% sensor values corresponding to black and white
-blacklevel = meta_info.SubIFDs{1}.BlackLevel(1); 
-whitelevel = meta_info.SubIFDs{1}.WhiteLevel; 
+mask = wbmask(size(raw_im,1), size(raw_im,2), wbcoeffs, bayertype);
+balancedim = raw_im .* mask;
 
-% resize array to fit within bounds described by metadata.
-rawim = rawim(y_origin:y_origin+height-1,x_origin:x_origin+width-1); 
-% transform array to doubles to keep floating point precision.
-rawim = double(rawim); 
+% Color Space Transformstions
+raw_img = uint16(balancedim * (2^16 - 1));
 
-% scale values to dynamic range of image & cut values beyond the max white level.
-rawim = (rawim - blacklevel) ./ (whitelevel - blacklevel); 
-rawim = max(0,min(rawim,1)); 
+% Apply Bayer demosaic
+for i = 2:rows-1
+    for j = 2:cols-1
+        
+        % Compute the missing color values
+        if (mod(i,2) == 0 && mod(j, 2) == 0)
+            % Blue pixel
+            blue_val = raw_img(i,j);
+            green_val = 0.25 * (raw_img(i-1,j) + raw_img(i+1,j) + raw_img(i,j-1) + raw_img(i,j+1));
+            red_val = 0.25 * (raw_img(i-1,j-1) + raw_img(i+1,j+1) + raw_img(i-1,j+1) + raw_img(i+1,j-1));
 
-imwrite(rawim,'ref.bmp');
+        elseif (mod(i,2) == 0 || mod(j, 2) == 0)
+            % Green pixel
+            red_val = 0.5 * (raw_img(i,j-1) + raw_img(i,j+1));
+            green_val = raw_img(i,j);
+            blue_val = 0.5 * (raw_img(i-1,j) + raw_img(i+1,j));
 
-I =imread('ref.bmp');
-figure,imshow(uint8(I));
-
-[M,N,L] = size(I);
-J = zeros(M,N);
-R = I(:,:,1);
-G = I(:,:,2);
-B = I(:,:,3);
-J(1:2:M,1:2:N) = R(1:2:M,1:2:N);
-J(2:2:M,2:2:N) = B(2:2:M,2:2:N);
-J(J==0) = G(J==0);
-T = zeros(M,N,3);
-figure,imshow(uint8(J));
-
-%% Reconstruct Bayer Filtered Image here
-for i = 2:M-1
-    for j = 2:N-1
-        if mod(i,2) == 0 && mod(j,2) == 1 %G
-            T(i,j,1)=round((J(i-1,j)+J(i+1,j))/2);
-            T(i,j,2)=round(J(i,j));
-            T(i,j,3)=round((J(i,j-1)+J(i,j+1))/2);
-        elseif mod(i,2) == 1 && mod(j,2) == 0
-            T(i,j,1)=round((J(i,j-1)+J(i,j+1))/2);
-            T(i,j,2)=round(J(i,j));
-            T(i,j,3)=round((J(i-1,j)+J(i+1,j))/2);
-        elseif mod(i,2) == 1 %R
-            T(i,j,1)=round(J(i,j));
-            T(i,j,2)=round((J(i-1,j)+J(i+1,j)+J(i,j-1)+J(i,j+1))/4);
-            T(i,j,3)=round((J(i-1,j-1)+J(i+1,j-1)+J(i+1,j-1)+J(i-1,j+1))/4);
-        else %B
-            T(i,j,1)=round((J(i-1,j-1)+J(i+1,j-1)+J(i+1,j-1)+J(i-1,j+1))/4);
-            T(i,j,2)=round((J(i-1,j)+J(i+1,j)+J(i,j-1)+J(i,j+1))/4);
-            T(i,j,3)=round(J(i,j));
+        else
+            % Red pixel
+            red_val = raw_img(i,j);
+            green_val = 0.25 * (raw_img(i-1,j) + raw_img(i,j-1) + raw_img(i,j+1) + raw_img(i+1,j));
+            blue_val = 0.25 * (raw_img(i-1,j-1) + raw_img(i-1,j+1) + raw_img(i+1,j-1) + raw_img(i+1,j+1));
         end
+
+        % Store the color values in the output image
+        rgb_img(i,j,1) = red_val;
+        rgb_img(i,j,2) = green_val;
+        rgb_img(i,j,3) = blue_val;
     end
 end
+
+% Display the output image
+imshow(rgb_img);
+
+XYZ2RGB = [[+3.2406, -1.5372, -0.4986]; [-0.9689, +1.8758, +0.0415]; [+0.0557, -0.2040, +1.0570]];
+
+Clinear = double(rgb_img) / (2^16 - 1);
+
+Csrgb = Clinear .^ (1/2.2);
+Csrgb = max(0, min(Csrgb,1)); 
+imshow(Csrgb);
+imshow(Clinear);
