@@ -10,14 +10,14 @@ filename = "RawImage.DNG";
 bayertype = 'rggb';
 
 % ask the user to choose method for interpolation.
-promt = 'Choose method: 1 for nearest, 2 for linear';
-x = input(promt);
-if x == 1
-    method = 'nearest';
-else
-    method = 'linear';
-end
-
+% promt = 'Choose method: 1 for nearest, 2 for linear';
+% x = input(promt);
+% if x == 1
+%     method = 'nearest';
+% else
+%     method = 'linear';
+% end
+method = 'linear';
 [Csrgb, Clinear, Cxyz, Ccam] = dng2rgb(rawim, XYZ2Cam, wbcoeffs, bayertype, method);
 
 % Write image files from the dng2rgb output
