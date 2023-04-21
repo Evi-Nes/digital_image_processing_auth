@@ -22,6 +22,6 @@ method = 'linear';
 
 % Write image files from the dng2rgb output
 imwrite(Csrgb, method+"_"+bayertype+"_"+"rgb.jpg");
-imwrite(Clinear, method+"_"+bayertype+"_"+"linear.jpg");
-imwrite(Cxyz, method+"_"+bayertype+"_"+"xyz.jpg");
-imwrite(Ccam, method+"_"+bayertype+"_"+"cam.jpg");
+% imwrite(Clinear, method+"_"+bayertype+"_"+"linear.jpg");
+% imwrite(Cxyz, method+"_"+bayertype+"_"+"xyz.jpg");
+% imwrite(Ccam, method+"_"+bayertype+"_"+"cam.jpg");
