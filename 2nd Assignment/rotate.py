@@ -27,29 +27,72 @@ def rotateImage(image):
 
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
-    cv2.imwrite("magnit.jpg", magnitude_spectrum)
+    mret, mthresh = cv2.threshold(magnitude_spectrum, 240, 255, cv2.THRESH_BINARY)
+    cv2.imwrite("magnit.jpg", mthresh)
 
-    # Find the location of the maximum value in the magnitude spectrum using Numpy's argmax
-    rows, cols = thresh.shape[:2]
-    crow, ccol = int(rows / 2), int(cols / 2)
-    max_value_location = np.unravel_index(np.argmax(magnitude_spectrum), magnitude_spectrum.shape)
+    # # Find the maximum value in each row to obtain a 1D array
+    # max_vals = np.max(magnitude_spectrum, axis=1)
+    #
+    # # Fit a line to the 1D array using polyfit
+    # y = np.arange(len(max_vals))
+    # coeffs = np.polyfit(y, max_vals, 1)
+    # slope = coeffs[0]
+    #
+    # # Compute the angle of the line relative to the vertical direction
+    # angle_degrees = np.degrees(np.arctan(slope))
+    # print(angle_degrees)
 
-    # Calculate the angle of rotation based on the location of the maximum value in the magnitude spectrum
-    angle = np.arctan2(max_value_location[0] - crow, max_value_location[1] - ccol)
-    angle_degrees = np.degrees(angle)
+    # # Find the location of the maximum value in the magnitude spectrum using Numpy's argmax
+    # rows, cols = thresh.shape[:2]
+    # crow, ccol = int(rows / 2), int(cols / 2)
+    # max_value_location = np.unravel_index(np.argmax(magnitude_spectrum), magnitude_spectrum.shape)
+    #
+    # # Calculate the angle of rotation based on the location of the maximum value in the magnitude spectrum
+    # angle = np.arctan2(max_value_location[0] - crow, max_value_location[1] - ccol)
+    # angle_degrees = np.degrees(angle)
+    #
+    # # Rotate the image by the calculated angle to fine-tune the rotation
+    # M = cv2.getRotationMatrix2D((cols // 2, rows // 2), angle_degrees, 1)
+    # # Calculate new image dimensions
+    # cos_theta = abs(M[0, 0])
+    # sin_theta = abs(M[0, 1])
+    # new_width = int((rows * sin_theta) + (cols * cos_theta))
+    # new_height = int((rows * cos_theta) + (cols * sin_theta))
+    #
+    # # Adjust the rotation matrix to take into account translation
+    # M[0, 2] += (new_width / 2) - cols // 2
+    # M[1, 2] += (new_height / 2) - rows // 2
+    # rotated_img = cv2.warpAffine(image, M, (new_width, new_height))
 
-    # Rotate the image by the calculated angle to fine-tune the rotation
-    M = cv2.getRotationMatrix2D((cols // 2, rows // 2), angle_degrees, 1)
-    # Calculate new image dimensions
-    cos_theta = abs(M[0, 0])
-    sin_theta = abs(M[0, 1])
-    new_width = int((rows * sin_theta) + (cols * cos_theta))
-    new_height = int((rows * cos_theta) + (cols * sin_theta))
+    src = magnitude_spectrum
+    height, width = src.shape
+    dst = np.zeros((height, width), dtype=np.int16)
+    src = np.array(src, dtype=np.int16)
 
-    # Adjust the rotation matrix to take into account translation
-    M[0, 2] += (new_width / 2) - cols // 2
-    M[1, 2] += (new_height / 2) - rows // 2
-    rotated_img = cv2.warpAffine(image, M, (new_width, new_height))
+    edges = cv2.Canny(src, dst, 190, 220, 3, False)
+    cv2.imshow('Result', edges)
+    cv2.waitKey(0)
+
+    # Apply HoughLines function
+    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+    lines = lines.squeeze()
+    # Draw the detected lines on the original image
+    for line in lines:
+        rho, theta = line
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        x1 = int(x0 + 1000 * (-b))
+        y1 = int(y0 + 1000 * a)
+        x2 = int(x0 - 1000 * (-b))
+        y2 = int(y0 - 1000 * a)
+        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+    # Display the result
+    cv2.imshow('Result', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
     return rotated_img
 
