@@ -16,27 +16,6 @@ def rotateImage(image):
     image = cv2.blur(image, (15, 15))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY)
-    # f = np.fft.fft2(thresh)
-    # fshift = np.fft.fftshift(f)
-    # magnitude_spectrum = 20*np.log(np.abs(fshift))
-    # rows = image.shape[0]
-    # cols = image.shape[1]
-    # crow,ccol = int(rows/2) , int(cols/2)
-    # max_value_location = np.unravel_index(np.argmax(magnitude_spectrum), magnitude_spectrum.shape)
-    # angle = np.arctan2(max_value_location[0] - crow, max_value_location[1] - ccol)
-    # angle_degrees = np.degrees(angle)
-    # M = cv2.getRotationMatrix2D((cols/2,rows/2),angle_degrees,1)
-    # rotated_img = cv2.warpAffine(image,M,(cols,rows))
-    #
-    # rotated_img = cv2.rotate(rotated_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    #
-    # plt.subplot(121), plt.imshow(image, cmap='gray')
-    # plt.title('Input Image'), plt.xticks([]), plt.yticks([])
-    # plt.subplot(122), plt.imshow(rotated_img, cmap='gray')
-    # plt.title('Rotated Image'), plt.xticks([]), plt.yticks([])
-    # plt.show()
-
     # Apply a threshold to the image to convert it to a binary image
     ret, thresh = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
 
@@ -71,8 +50,6 @@ def rotateImage(image):
     M[0, 2] += (new_width / 2) - cols // 2
     M[1, 2] += (new_height / 2) - rows // 2
     rotated_img = cv2.warpAffine(image, M, (new_width, new_height))
-
-    # rotated_img = cv2.rotate(rotated_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
     return rotated_img
 
