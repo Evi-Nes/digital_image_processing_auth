@@ -72,7 +72,8 @@ def rotateImage(image):
     edges = cv2.Canny(src, dst, 190, 220, 3, False)
     cv2.imshow('Result', edges)
     cv2.waitKey(0)
-
+    slope = np.zeros((2, 1), dtype=np.int16)
+    intercept = np.zeros((2, 1), dtype=np.int16)
     # Apply HoughLines function
     lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
     lines = lines.squeeze()
@@ -87,14 +88,38 @@ def rotateImage(image):
         y1 = int(y0 + 1000 * a)
         x2 = int(x0 - 1000 * (-b))
         y2 = int(y0 - 1000 * a)
+
+        slope_f = (y2 - y1) / (x2 - x1)
+        intercept_f = y1 - slope * x1
+
+        slope = np.append(slope, slope_f)
+        intercept = np.append(intercept, intercept_f)
+
         cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
     # Display the result
     cv2.imshow('Result', image)
+
+    slope = np.average(slope)
+    intercept = np.average(intercept)
+    print(slope)
+
+    # Define starting and ending points of the line
+    x1 = 0
+    y1 = int(slope * x1 + intercept)
+    x2 = image.shape[1]
+    y2 = int(slope * x2 + intercept)
+
+    # Draw line on the image
+    cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    # Show the image
+    cv2.imshow("Image with line", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+
     return rotated_img
+
 
 if __name__ == "__main__":
     image = cv2.imread("image.png")
