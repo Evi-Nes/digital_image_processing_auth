@@ -29,30 +29,106 @@ def rotateImage(image):
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
     mret, mthresh = cv2.threshold(magnitude_spectrum, 240, 255, cv2.THRESH_BINARY)
     cv2.imwrite("magnit.jpg", mthresh)
-    cv2.imshow("mthresh", mthresh)
+    # cv2.imshow("mthresh", mthresh)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    src = magnitude_spectrum
+    height, width = src.shape
+    dst = np.zeros((height, width), dtype=np.int16)
+    src = np.array(src, dtype=np.int16)
+
+    edges = cv2.Canny(src, dst, 190, 220, 3, False)
+
+    slope = np.empty((2, 1), dtype=np.int16)
+    intercept = np.empty((2, 1), dtype=np.int16)
+    # Apply HoughLines function
+    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+    lines = lines.squeeze()
+    # Draw the detected lines on the original image
+    for line in lines:
+        rho, theta = line
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        x1 = int(x0 + 1000 * (-b))
+        y1 = int(y0 + 1000 * (a))
+        x2 = int(x0 - 1000 * (-b))
+        y2 = int(y0 - 1000 * (a))
+
+        # Compute intersection points of line with image boundaries
+        x_left = 0
+        y_left = int((x_left - x0) / a + y0)
+        x_right = image.shape[1] - 1
+        y_right = int((x_right - x0) / a + y0)
+        y_top = 0
+        x_top = int((y_top - y0) / b + x0)
+        y_bottom = image.shape[0] - 1
+        x_bottom = int((y_bottom - y0) / b + x0)
+
+        # Check if intersection points are within bounds of image
+        intersection_points = []
+        if y_left >= 0 and y_left < image.shape[0]:
+            intersection_points.append((x_left, y_left))
+        if y_right >= 0 and y_right < image.shape[0]:
+            intersection_points.append((x_right, y_right))
+        if x_top >= 0 and x_top < image.shape[1]:
+            intersection_points.append((x_top, y_top))
+        if x_bottom >= 0 and x_bottom < image.shape[1]:
+            intersection_points.append((x_bottom, y_bottom))
+
+        # If intersection points are not within bounds of image, compute intersection points with extended lines
+        if len(intersection_points) < 2:
+            if y_left < 0:
+                x_left = int((y_left - y0) / b + x0)
+                intersection_points.append((x_left, 0))
+            elif y_left >= image.shape[0]:
+                x_left = int((y_left - y0) / b + x0)
+                intersection_points.append((x_left, image.shape[0] - 1))
+            if y_right < 0:
+                x_right = int((y_right - y0) / b + x0)
+                intersection_points.append((x_right, 0))
+            elif y_right >= image.shape[0]:
+                x_right = int((y_right - y0) / b + x0)
+                intersection_points.append((x_right, image.shape[0] - 1))
+            if x_top < 0:
+                y_top = int((x_top - x0) / a + y0)
+                intersection_points.append((0, y_top))
+            elif x_top >= image.shape[1]:
+                y_top = int((x_top - x0) / a + y0)
+                intersection_points.append((image.shape[1] - 1, y_top))
+            if x_bottom < 0:
+                y_bottom = int((x_bottom - x0) / a + y0)
+                intersection_points.append((0, y_bottom))
+            elif x_bottom >= image.shape[1]:
+                y_bottom = int((x_bottom - x0) / a + y0)
+                intersection_points.append((image.shape[1] - 1, y_bottom))
+
+        if len(intersection_points) >= 2:
+            x1, y1 = intersection_points[0]
+            x2, y2 = intersection_points[1]
+
+        slope_f = ((y2 - y1) / (x2 - x1))
+        intercept_f = (y1 - slope * x1)
+
+        slope = np.append(slope, slope_f)
+        intercept = np.append(intercept, intercept_f)
+
+        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+    # Display the result
+    cv2.imshow('Result', image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    # Find the maximum value in each row to obtain a 1D array
-    max_vals = np.max(magnitude_spectrum, axis=1)
-
-    # Fit a line to the 1D array using polyfit
-    y = np.arange(len(max_vals))
-    coeffs = np.polyfit(y, max_vals, 1)
-    slope = coeffs[0]
-
-    # Compute the angle of the line relative to the vertical direction
+    slope = np.average(slope)
+    intercept = np.average(intercept)
+    print(slope)
     angle_degrees = np.degrees(np.arctan(slope))
-    print(angle_degrees)
+    print("Angle", angle_degrees)
 
-    # Find the location of the maximum value in the magnitude spectrum using Numpy's argmax
     rows, cols = thresh.shape[:2]
-    crow, ccol = int(rows / 2), int(cols / 2)
-    max_value_location = np.unravel_index(np.argmax(magnitude_spectrum), magnitude_spectrum.shape)
-
-    # Calculate the angle of rotation based on the location of the maximum value in the magnitude spectrum
-    angle = np.arctan2(max_value_location[0] - crow, max_value_location[1] - ccol)
-    angle_degrees = np.degrees(angle)
 
     # Rotate the image by the calculated angle to fine-tune the rotation
     M = cv2.getRotationMatrix2D((cols // 2, rows // 2), angle_degrees, 1)
