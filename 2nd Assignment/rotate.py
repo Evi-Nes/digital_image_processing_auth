@@ -57,58 +57,6 @@ def rotateImage(image):
         x2 = int(x0 - 1000 * (-b))
         y2 = int(y0 - 1000 * (a))
 
-        # Compute intersection points of line with image boundaries
-        x_left = 0
-        y_left = int((x_left - x0) / a + y0)
-        x_right = image.shape[1] - 1
-        y_right = int((x_right - x0) / a + y0)
-        y_top = 0
-        x_top = int((y_top - y0) / b + x0)
-        y_bottom = image.shape[0] - 1
-        x_bottom = int((y_bottom - y0) / b + x0)
-
-        # Check if intersection points are within bounds of image
-        intersection_points = []
-        if y_left >= 0 and y_left < image.shape[0]:
-            intersection_points.append((x_left, y_left))
-        if y_right >= 0 and y_right < image.shape[0]:
-            intersection_points.append((x_right, y_right))
-        if x_top >= 0 and x_top < image.shape[1]:
-            intersection_points.append((x_top, y_top))
-        if x_bottom >= 0 and x_bottom < image.shape[1]:
-            intersection_points.append((x_bottom, y_bottom))
-
-        # If intersection points are not within bounds of image, compute intersection points with extended lines
-        if len(intersection_points) < 2:
-            if y_left < 0:
-                x_left = int((y_left - y0) / b + x0)
-                intersection_points.append((x_left, 0))
-            elif y_left >= image.shape[0]:
-                x_left = int((y_left - y0) / b + x0)
-                intersection_points.append((x_left, image.shape[0] - 1))
-            if y_right < 0:
-                x_right = int((y_right - y0) / b + x0)
-                intersection_points.append((x_right, 0))
-            elif y_right >= image.shape[0]:
-                x_right = int((y_right - y0) / b + x0)
-                intersection_points.append((x_right, image.shape[0] - 1))
-            if x_top < 0:
-                y_top = int((x_top - x0) / a + y0)
-                intersection_points.append((0, y_top))
-            elif x_top >= image.shape[1]:
-                y_top = int((x_top - x0) / a + y0)
-                intersection_points.append((image.shape[1] - 1, y_top))
-            if x_bottom < 0:
-                y_bottom = int((x_bottom - x0) / a + y0)
-                intersection_points.append((0, y_bottom))
-            elif x_bottom >= image.shape[1]:
-                y_bottom = int((x_bottom - x0) / a + y0)
-                intersection_points.append((image.shape[1] - 1, y_bottom))
-
-        if len(intersection_points) >= 2:
-            x1, y1 = intersection_points[0]
-            x2, y2 = intersection_points[1]
-
         slope_f = ((y2 - y1) / (x2 - x1))
         intercept_f = (y2 - slope * x2)
 
