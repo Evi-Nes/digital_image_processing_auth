@@ -64,12 +64,27 @@ def findRotationAngle(image):
 
     return angle_degrees
 
+def serialSearch(image, angle_degrees):
+    """
+    Through a serial search, find the desired angle of rotation of the image
+    :param image: the given image
+    :param angle_degrees: the angle of rotation calculated by findRotationAngle
+    :return: the angle of rotation
+    """
+
+    return serial_angle
+
 def rotateImage(image, angle_degrees):
+    """
+    Rotate the image by the given angle
+    :param image: the given image
+    :param angle_degrees: the angle of rotation calculated by serialSearch
+    :return: the rotated image
+    """
 
     rows, cols = image.shape[:2]
-
-    # Rotate the image by the calculated angle to fine-tune the rotation
     M = cv2.getRotationMatrix2D((cols // 2, rows // 2), angle_degrees, 1)
+
     # Calculate new image dimensions
     cos_theta = abs(M[0, 0])
     sin_theta = abs(M[0, 1])
@@ -87,4 +102,5 @@ def rotateImage(image, angle_degrees):
 if __name__ == "__main__":
     image = cv2.imread("image.png")
     angle = findRotationAngle(image)
-    cv2.imwrite("rotated.jpg", rotateImage(image, angle))
+    serial_angle = serialSearch(image, angle)
+    cv2.imwrite("rotated.jpg", rotateImage(image, serial_angle))
