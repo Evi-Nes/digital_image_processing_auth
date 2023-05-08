@@ -43,9 +43,9 @@ def preprocess(input_image):
     return connected_image, bw_image
 def findRotationAngle(input_image):
     """
-    Find the angle of rotation of the image using DFT
+    Find the angle of rotation of the image using DFT and magnitude spectrum
     :param input_image: the given image
-    :return: The angle for rotation
+    :return: the angle for rotation
     """
     connected, thresh = preprocess(input_image)
 
@@ -56,38 +56,11 @@ def findRotationAngle(input_image):
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
     mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
-    cv2.imwrite("mthresh.jpg", mthresh)
 
-    height, width = mthresh.shape
-    # polygons = np.array([
-    #     [(0, height/2.9), (width, height/2.9), (width, 1.9*height/3), (0, 1.9*height/3)]  # (y,x)
-    # ])
-    # mask = np.zeros_like(mthresh)
-    # cv2.fillPoly(mask, np.int32([polygons]), 255)
-    # # masked_image = cv2.bitwise_and(mthresh, mask)
-    # cv2.imshow("masked", masked_image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    #
-    # #add 2nd mask
-    mask = np.zeros_like(mthresh)
-    rows, cols = mask.shape[:2]
-    center = (cols // 2, rows // 2)
-    radius = 180
-    cv2.circle(mask, center, radius, (255, 255, 255), -1)
-    inverse_mask = 1 - mask / 255  # Invert the mask
-
-    # Multiply the inverse mask with the image using element-wise multiplication
-    # masked_img = cv2.bitwise_and(mthresh, mthresh, mask=inverse_mask.astype(np.uint8) * 255)
-
-    # Display the result
-    cv2.imshow('Masked Image', mthresh)
+    cv2.imshow("mthresh image", mthresh)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    cv2.imshow("thres", mthresh)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
     # Create a copy of the magnitude spectrum and necessary variables
     src = mthresh
     height, width = src.shape
@@ -95,7 +68,6 @@ def findRotationAngle(input_image):
     dst = np.zeros((height, width), dtype=np.int16)
 
     slope = np.array([])
-    intercept = np.array([])
 
     # Apply Canny edge detection and HoughLines function
     edges = cv2.Canny(src, dst, 210, 235, 3, False)
@@ -115,40 +87,30 @@ def findRotationAngle(input_image):
 
     lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=20, maxLineGap=5)
     lines = lines.squeeze()
+
     rows, cols = edges.shape[:2]
     center = (cols // 2, rows // 2)
     radius = 110
 
-    # Draw the lines on the image and calculate the slope and intercept of each line
+    # Calculate the slope of each line and draw the lines on the image
     for line in lines:
         x1, y1, x2, y2 = line
-
         if (y1 < (center[1] - radius)) | (y2 < (center[1] - radius)) | (y1 > (center[1] + radius)) | (y2 > (center[1] + radius)):
             if x1 == x2:
                 x1 = x1 + 1
-
+            slope = np.append(slope, ((y2 - y1) / (x2 - x1)))
             cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
 
-            slope_f = ((y2 - y1) / (x2 - x1))
-            intercept_f = (y1 - (slope * x1))
-
-            slope = np.append(slope, slope_f)
-            intercept = np.append(intercept, intercept_f)
         else:
             continue
 
-    cv2.imshow("lines", input_image)
+    cv2.imshow("detected lines", input_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    # Create a boolean mask for the inf values
-    mask = np.isinf(slope)
 
-    # Index the array with the inverse of the mask to remove the inf values
-    clean_arr = slope[~mask]
-
-    slope = np.mean(clean_arr)
-    intercept = np.mean(intercept)
+    slope = np.mean(slope)
     print("Slope", slope)
+
     angle_degrees = -(90 - np.degrees(np.arctan(slope)))
     print("Angle", angle_degrees)
     # should be slope=0.4 and angle=20
