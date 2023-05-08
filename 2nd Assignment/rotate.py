@@ -3,7 +3,6 @@ import numpy as np
 
 debug = True
 
-
 # Display image
 def display(input_image, frame_name="OpenCV Image"):
     if not debug:
@@ -48,7 +47,7 @@ def findRotationAngle(input_image):
     :return: the angle for rotation
     """
     connected, thresh = preprocess(input_image)
-
+    disp_image = np.copy(input_image)
     # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
     f = np.fft.fft2(connected)
     fshift = np.fft.fftshift(f)
@@ -99,12 +98,12 @@ def findRotationAngle(input_image):
             if x1 == x2:
                 x1 = x1 + 1
             slope = np.append(slope, ((y2 - y1) / (x2 - x1)))
-            cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
+            cv2.line(disp_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
 
         else:
             continue
 
-    cv2.imshow("detected lines", input_image)
+    cv2.imshow("detected lines", disp_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -124,23 +123,21 @@ def serialSearch(input_image, angle_degrees):
     :param angle_degrees: the angle of rotation calculated by findRotationAngle
     :return: the angle of rotation after the serial search
     """
-    angle_degrees = 0
     range_degrees = np.arange(np.int32(angle_degrees-10), np.int32(angle_degrees+10), 1)
     variance_normalized_f = np.array([])
+    connected, thresh = preprocess(input_image)
 
     for possible_angle in range_degrees:
 
-        rotated_image = fast_rotate_image(input_image, possible_angle)
-        connected, thresh = preprocess(rotated_image)
+        rotated_image = fast_rotate_image(connected, possible_angle)
 
         # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
-        f = np.fft.fft2(connected)
+        f = np.fft.fft2(rotated_image)
         fshift = np.fft.fftshift(f)
 
         # Calculate the magnitude spectrum of the DFT
         magnitude_spectrum = 20 * np.log(np.abs(fshift))
         mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
-        # display(mthresh)
         vertical_projection = np.sum(mthresh, axis=1)
 
         # Compute the first derivative of the vertical projection
@@ -161,15 +158,9 @@ def serialSearch(input_image, angle_degrees):
     index = np.argmax(variance_normalized)
     calculated_angle = range_degrees[index]
     print("calculated angle", calculated_angle)
-    # weight = 0.8
-    #
-    # # Calculate the weighted mean
-    # weighted_mean = (1 - weight) * angle + weight * calculated_angle
-    #
-    # # Print the result
-    # print("Weighted mean:", weighted_mean)
 
-    serial_angle = calculated_angle
+    serial_angle = np.int32((calculated_angle + angle_degrees)/2)
+    print("serial angle", serial_angle)
 
     return serial_angle
 
@@ -220,7 +211,7 @@ def rotateImage(input_image, angle_degrees):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("image3.png")
+    image = cv2.imread("text1.png")
     angle = findRotationAngle(image)
     serial_angle = serialSearch(image, angle)
     cv2.imwrite("rotated.jpg", rotateImage(image, serial_angle))
