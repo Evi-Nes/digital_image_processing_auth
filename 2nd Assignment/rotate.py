@@ -12,14 +12,35 @@ def findRotationAngle(input_image):
     gray_image = cv2.cvtColor(blurred_image, cv2.COLOR_BGR2GRAY)
     ret, thresh = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
 
-    # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum using np.fftshift
+    # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
     f = np.fft.fft2(thresh)
     fshift = np.fft.fftshift(f)
 
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
-    mret, mthresh = cv2.threshold(magnitude_spectrum, 240, 255, cv2.THRESH_BINARY)
-    # cv2.imwrite("mthresh.jpg", mthresh)
+    mret, mthresh = cv2.threshold(magnitude_spectrum, 230, 255, cv2.THRESH_BINARY)
+    # cv2.imshow("mthresh.jpg", mthresh)
+
+    height, width = mthresh.shape
+    polygons = np.array([
+        [(0, 0), (width, 0), (width, height/3), (0, height/3)]  # (y,x)
+    ])
+    mask = np.zeros_like(mthresh)
+    cv2.fillPoly(mask, np.int32([polygons]),255)
+    masked_image = cv2.bitwise_and(mthresh, mask)
+    cv2.imshow("masked", masked_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+    max_value = np.max(magnitude_spectrum)
+    threshold = 0.8 * max_value
+
+    # Find the indices of the magnitude spectrum where the values exceed the threshold
+    rows, cols = np.where(magnitude_spectrum >= threshold)
+
+    # Create a list of (row, col) tuples representing the indices where the threshold was exceeded
+    indices = list(zip(rows, cols))
 
     # Create a copy of the magnitude spectrum and necessary variables
     src = magnitude_spectrum
@@ -43,11 +64,8 @@ def findRotationAngle(input_image):
         slope_f = ((y2 - y1) / (x2 - x1))
         intercept_f = (y1 - (slope * x1))
 
-        if slope_f > 1.8 or slope_f < -1.8:
-            continue
-        else:
-            slope = np.append(slope, slope_f)
-            intercept = np.append(intercept, intercept_f)
+        slope = np.append(slope, slope_f)
+        intercept = np.append(intercept, intercept_f)
 
     # Display the result
     # cv2.imshow('Result', src)
@@ -72,8 +90,9 @@ def serialSearch(input_image, angle_degrees):
     :return: the angle of rotation after the serial search
     """
     max_frequencies = np.array([])
-    range_degrees = np.arange(np.int32(angle_degrees-15), np.int32(angle_degrees+15), 1)
+    range_degrees = np.arange(np.int32(angle_degrees-10), np.int32(angle_degrees+10), 1)
 
+    variance_normalized_f = np.array([])
     for possible_angle in range_degrees:
         rotated_image = fast_rotate_image(input_image, possible_angle)
         blurred_image = cv2.blur(rotated_image, (15, 15))
@@ -81,22 +100,37 @@ def serialSearch(input_image, angle_degrees):
         f_shift = np.fft.fftshift(f)
         magnitude_spectrum = 20 * np.log(np.abs(f_shift))
 
-        # Find the maximum value of the middle row
-        vertical_axis = magnitude_spectrum.shape[0] // 2
-        max_value_index = np.argmax(magnitude_spectrum[:, vertical_axis])
+        mret, mthresh = cv2.threshold(magnitude_spectrum, 230, 255, cv2.THRESH_BINARY)
 
-        # Convert index to frequency value
-        n = magnitude_spectrum.shape[0]
-        # The frequency values will be in the range of -0.5 to 0.5 cycles per pixel
-        max_frequency = max_value_index / n
-        max_frequencies = np.append(max_frequencies, max_frequency)
+        # height, width = mthresh.shape[0], mthresh.shape[1]
+        # polygons = np.array([
+        #     [(0, 0), (width, 0), (width, height / 3), (0, height / 3)]  # (y,x)
+        # ])
+        # mask = np.zeros_like(mthresh)
+        # cv2.fillPoly(mask, np.int32([polygons]), 255)
+        # masked_image = cv2.bitwise_and(mthresh, mask)
 
-    index = np.argmax(max_frequencies)
+        vertical_projection = np.sum(mthresh, axis=1)
+
+        # Compute the first derivative of the vertical projection
+        d_vertical_projection = np.diff(vertical_projection)
+
+        # Compute the variance of the first derivative
+        variance = np.var(d_vertical_projection)
+
+        # Alternatively, you can compute the number of sign changes in the first derivative
+        sign_changes = np.sum(np.abs(np.diff(np.sign(d_vertical_projection))))
+
+        variance_normalized_f = np.append(variance_normalized_f, variance)
+
+    # Normalize the variance/sign_changes to the range [0, 1]
+    variance_normalized = variance_normalized_f / np.max(variance_normalized_f)
+    # sign_changes_normalized = sign_changes / np.max(sign_changes)
+
+
+    index = np.argmax(variance_normalized_f)
     calculated_angle = range_degrees[index]
-    print(f"Max frequency: {max(max_frequencies)} at angle {calculated_angle}")
 
-    serial_angle = angle_degrees + calculated_angle
-    print(f"Serial angle: {serial_angle}")
 
     return serial_angle
 
