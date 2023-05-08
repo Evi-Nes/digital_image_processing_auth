@@ -60,7 +60,7 @@ def findRotationAngle(input_image):
 
     height, width = mthresh.shape
     polygons = np.array([
-        [(0, height/3), (width, height/3.2), (width, 2*height/3), (0, 2*height/3)]  # (y,x)
+        [(0, height/2.9), (width, height/2.9), (width, 1.9*height/3), (0, 1.9*height/3)]  # (y,x)
     ])
     mask = np.zeros_like(mthresh)
     cv2.fillPoly(mask, np.int32([polygons]), 255)
@@ -73,7 +73,7 @@ def findRotationAngle(input_image):
     mask = np.zeros_like(masked_image)
     rows, cols = mask.shape[:2]
     center = (cols // 2, rows // 2)
-    radius = 200
+    radius = 190
     cv2.circle(mask, center, radius, (255, 255, 255), -1)
     inverse_mask = 1 - mask / 255  # Invert the mask
 
@@ -87,7 +87,7 @@ def findRotationAngle(input_image):
 
 
     # Create a copy of the magnitude spectrum and necessary variables
-    src = masked_image
+    src = masked_img
     height, width = src.shape
     src = np.array(src, dtype=np.int16)
     dst = np.zeros((height, width), dtype=np.int16)
@@ -99,20 +99,29 @@ def findRotationAngle(input_image):
     edges = cv2.Canny(src, dst, 210, 235, 3, False)
     lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=20, maxLineGap=5)
     lines = lines.squeeze()
+    center = (cols // 2, rows // 2)
+    radius = 140
 
     # Draw the lines on the image and calculate the slope and intercept of each line
     for line in lines:
         x1, y1, x2, y2 = line
+        # if x1 == x2:
+        #     continue
+
+        # if (x1 < (center[0] + radius)) & (x2 < (center[0] + radius)) & (y1 < (center[1] + radius)) & (y2 < (center[1] + radius)):
+        #     continue
+
         cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
-        if x1 == x2:
-            continue
+
         slope_f = ((y2 - y1) / (x2 - x1))
         intercept_f = (y1 - (slope * x1))
 
         slope = np.append(slope, slope_f)
         intercept = np.append(intercept, intercept_f)
 
-    cv2.imshow("nl", input_image)
+    cv2.imshow("lines", input_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     # Create a boolean mask for the inf values
     mask = np.isinf(slope)
 
@@ -231,7 +240,7 @@ def rotateImage(input_image, angle_degrees):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("image.png")
+    image = cv2.imread("image3.png")
     angle = findRotationAngle(image)
     serial_angle = serialSearch(image, angle)
     cv2.imwrite("rotated.jpg", rotateImage(image, serial_angle))
