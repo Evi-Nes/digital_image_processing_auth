@@ -101,8 +101,14 @@ def findRotationAngle(input_image, disp_image):
     display(disp_image)
 
     slope = np.mean(slope)
-    angle_degrees = -(90 - np.degrees(np.arctan(slope)))
-    print("Angle", angle_degrees)
+    bb = np.degrees(np.arctan(slope))
+
+    if np.degrees(np.arctan(slope)) > 0:
+        angle_degrees = -(90 - np.degrees(np.arctan(slope)))
+    else:
+        angle_degrees = (90 + np.degrees(np.arctan(slope)))
+
+    print("DFT angle", angle_degrees)
 
     return angle_degrees
 
