@@ -40,33 +40,28 @@ def preprocess(input_image):
     # display(connected_image)
 
     return connected_image, bw_image
-def findRotationAngle(input_image):
+def findRotationAngle(input_image, disp_image):
     """
     Find the angle of rotation of the image using DFT and magnitude spectrum
-    :param input_image: the given image
+    :param disp_image: copy of the original image
+    :param input_image: the preprocessed image
     :return: the angle for rotation
     """
-    connected, thresh = preprocess(input_image)
-    disp_image = np.copy(input_image)
+    height, width = input_image.shape[:2]
+
     # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
-    f = np.fft.fft2(connected)
+    f = np.fft.fft2(input_image)
     fshift = np.fft.fftshift(f)
 
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
     mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
-
-    cv2.imshow("mthresh image", mthresh)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    display(mthresh)
 
     # Create a copy of the magnitude spectrum and necessary variables
     src = mthresh
-    height, width = src.shape
     src = np.array(src, dtype=np.int16)
     dst = np.zeros((height, width), dtype=np.int16)
-
-    slope = np.array([])
 
     # Apply Canny edge detection and HoughLines function
     edges = cv2.Canny(src, dst, 210, 235, 3, False)
@@ -80,39 +75,34 @@ def findRotationAngle(input_image):
         if stats[i, cv2.CC_STAT_AREA] < min_size:
             edges[labels == i] = 0
 
-    cv2.imshow('Removed Dots', edges)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    display(edges)
 
     lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=20, maxLineGap=5)
     lines = lines.squeeze()
 
-    rows, cols = edges.shape[:2]
-    center = (cols // 2, rows // 2)
+    center = (width // 2, height // 2)
     radius = 110
+    slope = np.array([])
 
     # Calculate the slope of each line and draw the lines on the image
     for line in lines:
         x1, y1, x2, y2 = line
+
         if (y1 < (center[1] - radius)) | (y2 < (center[1] - radius)) | (y1 > (center[1] + radius)) | (y2 > (center[1] + radius)):
             if x1 == x2:
                 x1 = x1 + 1
+
             slope = np.append(slope, ((y2 - y1) / (x2 - x1)))
             cv2.line(disp_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
 
         else:
             continue
 
-    cv2.imshow("detected lines", disp_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    display(disp_image)
 
     slope = np.mean(slope)
-    print("Slope", slope)
-
     angle_degrees = -(90 - np.degrees(np.arctan(slope)))
     print("Angle", angle_degrees)
-    # should be slope=0.4 and angle=20
 
     return angle_degrees
 
@@ -125,11 +115,9 @@ def serialSearch(input_image, angle_degrees):
     """
     range_degrees = np.arange(np.int32(angle_degrees-10), np.int32(angle_degrees+10), 1)
     variance_normalized_f = np.array([])
-    connected, thresh = preprocess(input_image)
 
     for possible_angle in range_degrees:
-
-        rotated_image = fast_rotate_image(connected, possible_angle)
+        rotated_image = fast_rotate_image(input_image, possible_angle)
 
         # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
         f = np.fft.fft2(rotated_image)
@@ -144,25 +132,19 @@ def serialSearch(input_image, angle_degrees):
         d_vertical_projection = np.diff(vertical_projection)
 
         # Compute the variance of the first derivative
-        variance = np.var(d_vertical_projection)
-
-        # Alternatively, you can compute the number of sign changes in the first derivative
-        # sign_changes = np.sum(np.abs(np.diff(np.sign(d_vertical_projection))))
-
-        variance_normalized_f = np.append(variance_normalized_f, variance)
+        variance_normalized_f = np.append(variance_normalized_f, np.var(d_vertical_projection))
 
     # Normalize the variance/sign_changes to the range [0, 1]
     variance_normalized = variance_normalized_f / np.max(variance_normalized_f)
-    # sign_changes_normalized = sign_changes / np.max(sign_changes)
 
     index = np.argmax(variance_normalized)
     calculated_angle = range_degrees[index]
-    print("calculated angle", calculated_angle)
+    print("serial angle", calculated_angle)
 
-    serial_angle = np.int32((calculated_angle + angle_degrees)/2)
-    print("serial angle", serial_angle)
+    final_angle = np.int32((calculated_angle + angle_degrees)/2)
+    print("final angle", final_angle)
 
-    return serial_angle
+    return final_angle
 
 def fast_rotate_image(input_image, input_angle):
     height, width = input_image.shape[:2]
@@ -185,16 +167,16 @@ def fast_rotate_image(input_image, input_angle):
 
     return result
 
-def rotateImage(input_image, angle_degrees):
+def rotateImage(input_image, rotation_angle):
     """
     Rotate the image by the given angle
     :param input_image: the given image
-    :param angle_degrees: the angle of rotation calculated by serialSearch
+    :param rotation_angle: the angle of rotation calculated by serialSearch
     :return: the rotated image
     """
 
     rows, cols = input_image.shape[:2]
-    M = cv2.getRotationMatrix2D((cols // 2, rows // 2), angle_degrees, 1)
+    M = cv2.getRotationMatrix2D((cols // 2, rows // 2), rotation_angle, 1)
 
     # Calculate new image dimensions
     cos_theta = abs(M[0, 0])
@@ -211,7 +193,11 @@ def rotateImage(input_image, angle_degrees):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("text1.png")
-    angle = findRotationAngle(image)
-    serial_angle = serialSearch(image, angle)
-    cv2.imwrite("rotated.jpg", rotateImage(image, serial_angle))
+    image = cv2.imread("image2.png")
+    display_image = np.copy(image)
+    connected, thresh = preprocess(image)
+
+    angle = findRotationAngle(connected, display_image)
+    serial_angle = serialSearch(connected, angle)
+
+    cv2.imwrite("rotated_image.jpg", rotateImage(image, serial_angle))
