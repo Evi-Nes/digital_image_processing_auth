@@ -5,20 +5,20 @@ debug = True
 
 
 # Display image
-def display(img, frameName="OpenCV Image"):
+def display(input_image, frameName="OpenCV Image"):
     if not debug:
         return
-    h, w = img.shape[0:2]
+    h, w = input_image.shape[0:2]
     new_w = 800
     new_h = int(new_w * (h / w))
-    img = cv2.resize(img, (new_w, new_h))
+    img = cv2.resize(input_image, (new_w, new_h))
     cv2.imshow(frameName, img)
     cv2.waitKey(0)
 
 
 # rotate the image with given theta value
-def rotate(img, theta):
-    rows, cols = img.shape[0], img.shape[1]
+def rotate(input_image, theta):
+    rows, cols = input_image.shape[0], input_image.shape[1]
     image_center = (cols / 2, rows / 2)
 
     M = cv2.getRotationMatrix2D(image_center, theta, 1)
@@ -33,7 +33,7 @@ def rotate(img, theta):
     M[1, 2] += bound_h / 2 - image_center[1]
 
     # rotate orignal image to show transformation
-    rotated = cv2.warpAffine(img, M, (bound_w, bound_h), borderValue=(255, 255, 255))
+    rotated = cv2.warpAffine(input_image, M, (bound_w, bound_h), borderValue=(255, 255, 255))
     return rotated
 
 
@@ -44,12 +44,14 @@ def slope(x1, y1, x2, y2):
     theta = np.rad2deg(np.arctan(slope))
     return theta
 
-
-def main(filePath):
-    img = cv2.imread(filePath)
-    textImg = img.copy()
-
-    small = cv2.cvtColor(textImg, cv2.COLOR_BGR2GRAY)
+def preprocess(input_image):
+    """
+    Preprocess the image to get the text regions
+    :param input_image: the given image
+    :return: connected_image the image with connected text regions
+    bw_image: the binarized image
+    """
+    small = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
 
     # find the gradient map
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -58,20 +60,28 @@ def main(filePath):
     display(grad)
 
     # Binarize the gradient image
-    _, bw = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    display(bw)
+    _, bw_image = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    display(bw_image)
 
     # connect horizontally oriented regions
     # kernel value (9,1) can be changed to improve the text detection
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
-    connected = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, kernel)
-    display(connected)
+    connected_image = cv2.morphologyEx(bw_image, cv2.MORPH_CLOSE, kernel)
+    display(connected_image)
 
-    # using RETR_EXTERNAL instead of RETR_CCOMP
-    # _ , contours, hierarchy = cv2.findContours(connected.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    contours, hierarchy = cv2.findContours(connected.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)  # opencv >= 4.0
+    return connected_image, bw_image
 
-    mask = np.zeros(bw.shape, dtype=np.uint8)
+def find_contours(connected_image, bw_image, textImg):
+    """
+    Find the contours in the image
+    :param connected_image: the image with connected text regions
+    :param bw_image: the binarized image
+    :param textImg: the image with detected text regions
+    :return: the contours
+    """
+    contours, hierarchy = cv2.findContours(connected_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    mask = np.zeros(bw_image.shape, dtype=np.uint8)
 
     # cumulative theta value
     cummTheta = 0
@@ -95,20 +105,26 @@ def main(filePath):
             cv2.drawContours(textImg, [box], 0, (0, 0, 255), 2)
 
             # we can filter theta as outlier based on other theta values
-            # this will help in excluding the rare text region with different orientation from ususla value
+            # this will help in excluding the rare text region with different orientation from usual value
             theta = slope(box[0][0], box[0][1], box[1][0], box[1][1])
             cummTheta += theta
             ct += 1
             # print("Theta", theta)
-
     # find the average of all cumulative theta value
     orientation = cummTheta / ct
-    print("Image orientation in degress: ", orientation)
-    finalImage = rotate(img, orientation)
-    display(textImg, "Detectd Text minimum bounding box")
-    display(finalImage, "Deskewed Image")
+
+    return orientation
 
 
 if __name__ == "__main__":
-    filePath = 'text1.png'
-    main(filePath)
+    filePath = 'image.png'
+    img = cv2.imread(filePath)
+    textImg = img.copy()
+    connected, bw = preprocess(img)
+
+    orientation = find_contours(connected, bw, textImg)
+    print("Image orientation in degrees: ", orientation)
+
+    finalImage = rotate(img, orientation)
+    display(textImg, "Detected Text minimum bounding box")
+    display(finalImage, "Skewered Image")
