@@ -1,29 +1,66 @@
 import cv2
 import numpy as np
 
+debug = True
+
+
+# Display image
+def display(input_image, frame_name="OpenCV Image"):
+    if not debug:
+        return
+    h, w = input_image.shape[0:2]
+    new_w = 800
+    new_h = int(new_w * (h / w))
+    input_image = cv2.resize(input_image, (new_w, new_h))
+    cv2.imshow(frame_name, input_image)
+    cv2.waitKey(0)
+
+def preprocess(input_image):
+    """
+    Preprocess the image to get the text regions
+    :param input_image: the given image
+    :return: connected_image the image with connected text regions
+    bw_image: the binarized image
+    """
+    small = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
+
+    # find the gradient map
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    grad = cv2.morphologyEx(small, cv2.MORPH_GRADIENT, kernel)
+
+    # display(grad)
+
+    # Binarize the gradient image
+    _, bw_image = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    # display(bw_image)
+
+    # connect horizontally oriented regions
+    # kernel value (9,1) can be changed to improve the text detection
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
+    connected_image = cv2.morphologyEx(bw_image, cv2.MORPH_CLOSE, kernel)
+    # display(connected_image)
+
+    return connected_image, bw_image
 def findRotationAngle(input_image):
     """
     Find the angle of rotation of the image using DFT
     :param input_image: the given image
     :return: The angle for rotation
     """
-    # Pre-process the image and convert it to a binary image
-    blurred_image = cv2.blur(input_image, (15, 15))
-    gray_image = cv2.cvtColor(blurred_image, cv2.COLOR_BGR2GRAY)
-    ret, thresh = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
+    connected, thresh = preprocess(input_image)
 
     # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
-    f = np.fft.fft2(thresh)
+    f = np.fft.fft2(connected)
     fshift = np.fft.fftshift(f)
 
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
-    mret, mthresh = cv2.threshold(magnitude_spectrum, 230, 255, cv2.THRESH_BINARY)
-    # cv2.imshow("mthresh.jpg", mthresh)
+    mret, mthresh = cv2.threshold(magnitude_spectrum, 240, 255, cv2.THRESH_BINARY)
+    cv2.imwrite("mthresh.jpg", mthresh)
 
     height, width = mthresh.shape
     polygons = np.array([
-        [(0, 0), (width, 0), (width, height/3), (0, height/3)]  # (y,x)
+        [(0, 0), (width, 0), (width, height/2.7), (0, height/2.7)]  # (y,x)
     ])
     mask = np.zeros_like(mthresh)
     cv2.fillPoly(mask, np.int32([polygons]),255)
@@ -32,18 +69,8 @@ def findRotationAngle(input_image):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
-    max_value = np.max(magnitude_spectrum)
-    threshold = 0.8 * max_value
-
-    # Find the indices of the magnitude spectrum where the values exceed the threshold
-    rows, cols = np.where(magnitude_spectrum >= threshold)
-
-    # Create a list of (row, col) tuples representing the indices where the threshold was exceeded
-    indices = list(zip(rows, cols))
-
     # Create a copy of the magnitude spectrum and necessary variables
-    src = magnitude_spectrum
+    src = masked_image
     height, width = src.shape
     src = np.array(src, dtype=np.int16)
     dst = np.zeros((height, width), dtype=np.int16)
@@ -59,21 +86,22 @@ def findRotationAngle(input_image):
     # Draw the lines on the image and calculate the slope and intercept of each line
     for line in lines:
         x1, y1, x2, y2 = line
-        # cv2.line(image, (x1, y1), (x2, y2), (255, 64, 64), 3)
-
+        # cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
+        if x1 == x2:
+            continue
         slope_f = ((y2 - y1) / (x2 - x1))
         intercept_f = (y1 - (slope * x1))
 
         slope = np.append(slope, slope_f)
         intercept = np.append(intercept, intercept_f)
 
-    # Display the result
-    # cv2.imshow('Result', src)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    # Create a boolean mask for the inf values
+    mask = np.isinf(slope)
 
-    # Calculate the average slope and intercept and the angle of rotation
-    slope = np.mean(slope)
+    # Index the array with the inverse of the mask to remove the inf values
+    clean_arr = slope[~mask]
+
+    slope = np.mean(clean_arr)
     intercept = np.mean(intercept)
     print("Slope", slope)
     angle_degrees = np.degrees(np.arctan(slope))
@@ -89,27 +117,23 @@ def serialSearch(input_image, angle_degrees):
     :param angle_degrees: the angle of rotation calculated by findRotationAngle
     :return: the angle of rotation after the serial search
     """
-    max_frequencies = np.array([])
+    angle_degrees = 0
     range_degrees = np.arange(np.int32(angle_degrees-10), np.int32(angle_degrees+10), 1)
-
     variance_normalized_f = np.array([])
+
     for possible_angle in range_degrees:
+
         rotated_image = fast_rotate_image(input_image, possible_angle)
-        blurred_image = cv2.blur(rotated_image, (15, 15))
-        f = np.fft.fft2(blurred_image)
-        f_shift = np.fft.fftshift(f)
-        magnitude_spectrum = 20 * np.log(np.abs(f_shift))
+        connected, thresh = preprocess(rotated_image)
 
-        mret, mthresh = cv2.threshold(magnitude_spectrum, 230, 255, cv2.THRESH_BINARY)
+        # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
+        f = np.fft.fft2(connected)
+        fshift = np.fft.fftshift(f)
 
-        # height, width = mthresh.shape[0], mthresh.shape[1]
-        # polygons = np.array([
-        #     [(0, 0), (width, 0), (width, height / 3), (0, height / 3)]  # (y,x)
-        # ])
-        # mask = np.zeros_like(mthresh)
-        # cv2.fillPoly(mask, np.int32([polygons]), 255)
-        # masked_image = cv2.bitwise_and(mthresh, mask)
-
+        # Calculate the magnitude spectrum of the DFT
+        magnitude_spectrum = 20 * np.log(np.abs(fshift))
+        mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
+        display(mthresh)
         vertical_projection = np.sum(mthresh, axis=1)
 
         # Compute the first derivative of the vertical projection
@@ -119,7 +143,7 @@ def serialSearch(input_image, angle_degrees):
         variance = np.var(d_vertical_projection)
 
         # Alternatively, you can compute the number of sign changes in the first derivative
-        sign_changes = np.sum(np.abs(np.diff(np.sign(d_vertical_projection))))
+        # sign_changes = np.sum(np.abs(np.diff(np.sign(d_vertical_projection))))
 
         variance_normalized_f = np.append(variance_normalized_f, variance)
 
@@ -127,10 +151,18 @@ def serialSearch(input_image, angle_degrees):
     variance_normalized = variance_normalized_f / np.max(variance_normalized_f)
     # sign_changes_normalized = sign_changes / np.max(sign_changes)
 
-
-    index = np.argmax(variance_normalized_f)
+    index = np.argmax(variance_normalized)
     calculated_angle = range_degrees[index]
+    print("calculated angle", calculated_angle)
+    weight = 0.8
 
+    # Calculate the weighted mean
+    weighted_mean = (1 - weight) * angle + weight * calculated_angle
+
+    # Print the result
+    print("Weighted mean:", weighted_mean)
+
+    serial_angle = weighted_mean
 
     return serial_angle
 
@@ -181,7 +213,7 @@ def rotateImage(input_image, angle_degrees):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("image.png")
+    image = cv2.imread("text1.png")
     angle = findRotationAngle(image)
     serial_angle = serialSearch(image, angle)
     cv2.imwrite("rotated.jpg", rotateImage(image, serial_angle))
