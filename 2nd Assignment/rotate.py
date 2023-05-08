@@ -59,35 +59,37 @@ def findRotationAngle(input_image):
     cv2.imwrite("mthresh.jpg", mthresh)
 
     height, width = mthresh.shape
-    polygons = np.array([
-        [(0, height/2.9), (width, height/2.9), (width, 1.9*height/3), (0, 1.9*height/3)]  # (y,x)
-    ])
+    # polygons = np.array([
+    #     [(0, height/2.9), (width, height/2.9), (width, 1.9*height/3), (0, 1.9*height/3)]  # (y,x)
+    # ])
+    # mask = np.zeros_like(mthresh)
+    # cv2.fillPoly(mask, np.int32([polygons]), 255)
+    # # masked_image = cv2.bitwise_and(mthresh, mask)
+    # cv2.imshow("masked", masked_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    #
+    # #add 2nd mask
     mask = np.zeros_like(mthresh)
-    cv2.fillPoly(mask, np.int32([polygons]), 255)
-    masked_image = cv2.bitwise_and(mthresh, mask)
-    cv2.imshow("masked", masked_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    #add 2nd mask
-    mask = np.zeros_like(masked_image)
     rows, cols = mask.shape[:2]
     center = (cols // 2, rows // 2)
-    radius = 190
+    radius = 180
     cv2.circle(mask, center, radius, (255, 255, 255), -1)
     inverse_mask = 1 - mask / 255  # Invert the mask
 
     # Multiply the inverse mask with the image using element-wise multiplication
-    masked_img = cv2.bitwise_and(masked_image, masked_image, mask=inverse_mask.astype(np.uint8) * 255)
+    # masked_img = cv2.bitwise_and(mthresh, mthresh, mask=inverse_mask.astype(np.uint8) * 255)
 
     # Display the result
-    cv2.imshow('Masked Image', masked_img)
+    cv2.imshow('Masked Image', mthresh)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
+    cv2.imshow("thres", mthresh)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     # Create a copy of the magnitude spectrum and necessary variables
-    src = masked_img
+    src = mthresh
     height, width = src.shape
     src = np.array(src, dtype=np.int16)
     dst = np.zeros((height, width), dtype=np.int16)
@@ -97,27 +99,43 @@ def findRotationAngle(input_image):
 
     # Apply Canny edge detection and HoughLines function
     edges = cv2.Canny(src, dst, 210, 235, 3, False)
+
+    # Perform connected component analysis
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges)
+
+    # Define size threshold and remove small objects
+    min_size = 10
+    for i in range(1, num_labels):
+        if stats[i, cv2.CC_STAT_AREA] < min_size:
+            edges[labels == i] = 0
+
+    cv2.imshow('Removed Dots', edges)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=20, maxLineGap=5)
     lines = lines.squeeze()
+    rows, cols = edges.shape[:2]
     center = (cols // 2, rows // 2)
-    radius = 140
+    radius = 110
 
     # Draw the lines on the image and calculate the slope and intercept of each line
     for line in lines:
         x1, y1, x2, y2 = line
-        # if x1 == x2:
-        #     continue
 
-        # if (x1 < (center[0] + radius)) & (x2 < (center[0] + radius)) & (y1 < (center[1] + radius)) & (y2 < (center[1] + radius)):
-        #     continue
+        if (y1 < (center[1] - radius)) | (y2 < (center[1] - radius)) | (y1 > (center[1] + radius)) | (y2 > (center[1] + radius)):
+            if x1 == x2:
+                x1 = x1 + 1
 
-        cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
+            cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
 
-        slope_f = ((y2 - y1) / (x2 - x1))
-        intercept_f = (y1 - (slope * x1))
+            slope_f = ((y2 - y1) / (x2 - x1))
+            intercept_f = (y1 - (slope * x1))
 
-        slope = np.append(slope, slope_f)
-        intercept = np.append(intercept, intercept_f)
+            slope = np.append(slope, slope_f)
+            intercept = np.append(intercept, intercept_f)
+        else:
+            continue
 
     cv2.imshow("lines", input_image)
     cv2.waitKey(0)
@@ -131,7 +149,7 @@ def findRotationAngle(input_image):
     slope = np.mean(clean_arr)
     intercept = np.mean(intercept)
     print("Slope", slope)
-    angle_degrees = np.degrees(np.arctan(slope))
+    angle_degrees = -(90 - np.degrees(np.arctan(slope)))
     print("Angle", angle_degrees)
     # should be slope=0.4 and angle=20
 
