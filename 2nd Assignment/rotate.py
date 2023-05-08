@@ -55,19 +55,36 @@ def findRotationAngle(input_image):
 
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
-    mret, mthresh = cv2.threshold(magnitude_spectrum, 240, 255, cv2.THRESH_BINARY)
+    mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
     cv2.imwrite("mthresh.jpg", mthresh)
 
     height, width = mthresh.shape
     polygons = np.array([
-        [(0, 0), (width, 0), (width, height/2.7), (0, height/2.7)]  # (y,x)
+        [(0, height/3), (width, height/3.2), (width, 2*height/3), (0, 2*height/3)]  # (y,x)
     ])
     mask = np.zeros_like(mthresh)
-    cv2.fillPoly(mask, np.int32([polygons]),255)
+    cv2.fillPoly(mask, np.int32([polygons]), 255)
     masked_image = cv2.bitwise_and(mthresh, mask)
     cv2.imshow("masked", masked_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    #add 2nd mask
+    mask = np.zeros_like(masked_image)
+    rows, cols = mask.shape[:2]
+    center = (cols // 2, rows // 2)
+    radius = 200
+    cv2.circle(mask, center, radius, (255, 255, 255), -1)
+    inverse_mask = 1 - mask / 255  # Invert the mask
+
+    # Multiply the inverse mask with the image using element-wise multiplication
+    masked_img = cv2.bitwise_and(masked_image, masked_image, mask=inverse_mask.astype(np.uint8) * 255)
+
+    # Display the result
+    cv2.imshow('Masked Image', masked_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
 
     # Create a copy of the magnitude spectrum and necessary variables
     src = masked_image
@@ -80,13 +97,13 @@ def findRotationAngle(input_image):
 
     # Apply Canny edge detection and HoughLines function
     edges = cv2.Canny(src, dst, 210, 235, 3, False)
-    lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=5, maxLineGap=5)
+    lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=20, maxLineGap=5)
     lines = lines.squeeze()
 
     # Draw the lines on the image and calculate the slope and intercept of each line
     for line in lines:
         x1, y1, x2, y2 = line
-        # cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
+        cv2.line(input_image, (x1, y1), (x2, y2), (255, 64, 64), 3)
         if x1 == x2:
             continue
         slope_f = ((y2 - y1) / (x2 - x1))
@@ -95,6 +112,7 @@ def findRotationAngle(input_image):
         slope = np.append(slope, slope_f)
         intercept = np.append(intercept, intercept_f)
 
+    cv2.imshow("nl", input_image)
     # Create a boolean mask for the inf values
     mask = np.isinf(slope)
 
@@ -133,7 +151,7 @@ def serialSearch(input_image, angle_degrees):
         # Calculate the magnitude spectrum of the DFT
         magnitude_spectrum = 20 * np.log(np.abs(fshift))
         mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
-        display(mthresh)
+        # display(mthresh)
         vertical_projection = np.sum(mthresh, axis=1)
 
         # Compute the first derivative of the vertical projection
@@ -154,15 +172,15 @@ def serialSearch(input_image, angle_degrees):
     index = np.argmax(variance_normalized)
     calculated_angle = range_degrees[index]
     print("calculated angle", calculated_angle)
-    weight = 0.8
+    # weight = 0.8
+    #
+    # # Calculate the weighted mean
+    # weighted_mean = (1 - weight) * angle + weight * calculated_angle
+    #
+    # # Print the result
+    # print("Weighted mean:", weighted_mean)
 
-    # Calculate the weighted mean
-    weighted_mean = (1 - weight) * angle + weight * calculated_angle
-
-    # Print the result
-    print("Weighted mean:", weighted_mean)
-
-    serial_angle = weighted_mean
+    serial_angle = calculated_angle
 
     return serial_angle
 
@@ -213,7 +231,7 @@ def rotateImage(input_image, angle_degrees):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("text1.png")
+    image = cv2.imread("image.png")
     angle = findRotationAngle(image)
     serial_angle = serialSearch(image, angle)
     cv2.imwrite("rotated.jpg", rotateImage(image, serial_angle))
