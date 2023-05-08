@@ -5,19 +5,25 @@ debug = True
 
 
 # Display image
-def display(input_image, frameName="OpenCV Image"):
+def display(input_image, frame_name="OpenCV Image"):
     if not debug:
         return
     h, w = input_image.shape[0:2]
     new_w = 800
     new_h = int(new_w * (h / w))
-    img = cv2.resize(input_image, (new_w, new_h))
-    cv2.imshow(frameName, img)
+    input_image = cv2.resize(input_image, (new_w, new_h))
+    cv2.imshow(frame_name, input_image)
     cv2.waitKey(0)
 
 
 # rotate the image with given theta value
 def rotate(input_image, theta):
+    """
+    Rotate the image with given theta value
+    :param input_image: the given image
+    :param theta: calculated from the slope function
+    :return: the rotated image
+    """
     rows, cols = input_image.shape[0], input_image.shape[1]
     image_center = (cols / 2, rows / 2)
 
@@ -32,12 +38,17 @@ def rotate(input_image, theta):
     M[0, 2] += bound_w / 2 - image_center[0]
     M[1, 2] += bound_h / 2 - image_center[1]
 
-    # rotate orignal image to show transformation
+    # rotate original image to show transformation
     rotated = cv2.warpAffine(input_image, M, (bound_w, bound_h), borderValue=(255, 255, 255))
     return rotated
 
 
 def slope(x1, y1, x2, y2):
+    """
+    Calculate the slope of the line
+    :param x1, y1, x2, y2: the coordinates of the line
+    :return: theta: calculated from the slope
+    """
     if x1 == x2:
         return 0
     slope = (y2 - y1) / (x2 - x1)
