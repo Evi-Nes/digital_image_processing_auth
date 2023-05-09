@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import pandas as pd
 
 debug = True
 
@@ -45,15 +45,38 @@ def preprocessText(input_image):
     return final_image
 
 def getContour(original_image, input_image):
-    # find contours
+    """
+    Get the contours of the image and return coordinates of the outer and inner contours
+    :param original_image: the original image
+    :param input_image: the preprocessed image
+    :return:
+    """
     contours, hierarchy = cv2.findContours(input_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # Draw the outer contours in green and inner contours in red
+    coordinates = []
+    for i, contour in enumerate(contours):
+        if hierarchy[0][i][3] == -1:
+            coordinates.append((contour, 'outer'))
+        else:
+            coordinates.append((contour, 'inner'))
+
     contoured_image = cv2.drawContours(original_image, contours, -1, (0, 255, 0), 2)
     contoured_image = cv2.drawContours(original_image, contours, 1, (0, 0, 255), 2)
 
     display(contoured_image, "contours")
 
-    return contours
+    # # Store the outer and inner contours in separate arrays
+    # outer_contours = []
+    # inner_contours = []
+    # for i, cnt in enumerate(contours):
+    #     if hierarchy[0][i][3] == -1:  # if contour has no parent, it is outer contour
+    #         outer_contours.append(cnt)
+    #     else:  # if contour has parent, it is inner contour
+    #         inner_contours.append(cnt)
+    #
+    # # Create a Pandas DataFrame with two columns: 'Outer Contours' and 'Inner Contours'
+    # df = pd.DataFrame({'Outer Contours': outer_contours, 'Inner Contours': inner_contours})
+
+    return coordinates
 
 if __name__ == "__main__":
     image = cv2.imread("alpha.png")
