@@ -53,33 +53,28 @@ def getContour(original_image, input_image):
     """
     contours, hierarchy = cv2.findContours(input_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     coordinates = []
+
+    # Get the coordinates of the outer and inner contours. If contour has no parent, it is outer contour.
     for i, contour in enumerate(contours):
         if hierarchy[0][i][3] == -1:
             coordinates.append((contour, 'outer'))
         else:
             coordinates.append((contour, 'inner'))
 
-    contoured_image = cv2.drawContours(original_image, contours, -1, (0, 255, 0), 2)
-    contoured_image = cv2.drawContours(original_image, contours, 1, (0, 0, 255), 2)
-
+    # Display the outer and inner contours (if exist) in the original image
+    if coordinates is not None:
+        for i, coordinate in enumerate(coordinates):
+            if coordinate[1] == 'outer':
+                contoured_image = cv2.drawContours(original_image, contours, i, (0, 0, 255), 2)
+            else:
+                contoured_image = cv2.drawContours(original_image, contours, i, (255, 0, 0), 2)
     display(contoured_image, "contours")
-
-    # # Store the outer and inner contours in separate arrays
-    # outer_contours = []
-    # inner_contours = []
-    # for i, cnt in enumerate(contours):
-    #     if hierarchy[0][i][3] == -1:  # if contour has no parent, it is outer contour
-    #         outer_contours.append(cnt)
-    #     else:  # if contour has parent, it is inner contour
-    #         inner_contours.append(cnt)
-    #
-    # # Create a Pandas DataFrame with two columns: 'Outer Contours' and 'Inner Contours'
-    # df = pd.DataFrame({'Outer Contours': outer_contours, 'Inner Contours': inner_contours})
 
     return coordinates
 
+
 if __name__ == "__main__":
-    image = cv2.imread("alpha.png")
+    image = cv2.imread("eee.png")
     rotated_image = np.copy(image)
 
     processed_image = preprocessText(rotated_image)
