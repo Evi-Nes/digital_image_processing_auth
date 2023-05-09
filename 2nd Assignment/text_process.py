@@ -68,13 +68,14 @@ def getContour(original_image, input_image):
                 contoured_image = cv2.drawContours(original_image, contours, i, (0, 0, 255), 2)
             else:
                 contoured_image = cv2.drawContours(original_image, contours, i, (255, 0, 0), 2)
+
     display(contoured_image, "contours")
 
     return coordinates
 
 
 if __name__ == "__main__":
-    image = cv2.imread("eee.png")
+    image = cv2.imread("fff.png")
     rotated_image = np.copy(image)
 
     processed_image = preprocessText(rotated_image)
