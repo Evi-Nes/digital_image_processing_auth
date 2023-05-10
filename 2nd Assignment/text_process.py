@@ -71,8 +71,8 @@ def getContour(original_image, input_image):
 
             outer_complex_array = np.array(outer_complex)
 
-            print('outer coordinates', outer_coordinates)
-            print('outer_complex_array', outer_complex_array)
+            # print('outer coordinates', outer_coordinates)
+            # print('outer_complex_array', outer_complex_array)
 
         else:  # if contour has parent, it is inner contour
             inner = True
@@ -84,8 +84,8 @@ def getContour(original_image, input_image):
 
             inner_complex_array = np.array(inner_complex)
 
-            print('inner coordinates', inner_coordinates)
-            print('inner_complex_array', inner_complex_array)
+            # print('inner coordinates', inner_coordinates)
+            # print('inner_complex_array', inner_complex_array)
 
     # # Create a Pandas DataFrame with two columns: 'Outer Contours' and 'Inner Contours'
     # df = pd.DataFrame({'Outer Contours': outer_contours, 'Inner Contours': inner_contours})
@@ -96,12 +96,23 @@ def getContour(original_image, input_image):
         contoured_image = cv2.drawContours(original_image, inner_contours, -1, (0, 0, 255), 2)
     display(contoured_image, "contours")
 
-    if inner == True :
+    if inner == True:
         all_coordinates = outer_complex_array, inner_complex_array
         return all_coordinates
     else:
         all_coordinates = outer_complex_array
         return all_coordinates
+
+def getDFT(input_array):
+    """
+    Get the DFT of the input array
+    :param input_array: the input array
+    :return: the DFT of the input array
+    """
+    dft = np.fft.fft(input_array)
+    description = np.abs(dft[1::])
+
+    return description
 
 
 if __name__ == "__main__":
@@ -110,4 +121,5 @@ if __name__ == "__main__":
 
     processed_image = preprocessText(rotated_image)
     contour_cells = getContour(rotated_image, processed_image)
-    print(contour_cells)
+
+    result = getDFT(contour_cells)
