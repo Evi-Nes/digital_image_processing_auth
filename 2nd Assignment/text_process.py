@@ -52,26 +52,56 @@ def getContour(original_image, input_image):
     :return:
     """
     contours, hierarchy = cv2.findContours(input_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    coordinates = []
 
-    # Get the coordinates of the outer and inner contours. If contour has no parent, it is outer contour.
-    for i, contour in enumerate(contours):
-        if hierarchy[0][i][3] == -1:
-            coordinates.append((contour, 'outer'))
-        else:
-            coordinates.append((contour, 'inner'))
+    # Store the outer and inner contours in separate arrays
+    outer_contours = []
+    inner_contours = []
+    outer_complex = []
+    inner_complex = []
+    all_coordinates = []
+    inner = False
 
-    # Display the outer and inner contours (if exist) in the original image
-    if coordinates is not None:
-        for i, coordinate in enumerate(coordinates):
-            if coordinate[1] == 'outer':
-                contoured_image = cv2.drawContours(original_image, contours, i, (0, 0, 255), 2)
-            else:
-                contoured_image = cv2.drawContours(original_image, contours, i, (255, 0, 0), 2)
+    for i, cnt in enumerate(contours):
+        if hierarchy[0][i][3] == -1:  # if contour has no parent, it is outer contour
+            outer_contours.append(cnt)
+            outer_coordinates = cnt.reshape(-1, 2)
 
+            for x, y in outer_coordinates:
+                outer_complex.append(complex(x, y))
+
+            outer_complex_array = np.array(outer_complex)
+
+            print('outer coordinates', outer_coordinates)
+            print('outer_complex_array', outer_complex_array)
+
+        else:  # if contour has parent, it is inner contour
+            inner = True
+            inner_contours.append(cnt)
+            inner_coordinates = cnt.reshape(-1, 2)
+
+            for x, y in inner_coordinates:
+                inner_complex.append(complex(x, y))
+
+            inner_complex_array = np.array(inner_complex)
+
+            print('inner coordinates', inner_coordinates)
+            print('inner_complex_array', inner_complex_array)
+
+    # # Create a Pandas DataFrame with two columns: 'Outer Contours' and 'Inner Contours'
+    # df = pd.DataFrame({'Outer Contours': outer_contours, 'Inner Contours': inner_contours})
+
+    if len(outer_contours) > 0:
+        contoured_image = cv2.drawContours(original_image, outer_contours, -1, (255, 0, 0), 2)
+    if len(inner_contours) > 0:
+        contoured_image = cv2.drawContours(original_image, inner_contours, -1, (0, 0, 255), 2)
     display(contoured_image, "contours")
 
-    return coordinates
+    if inner == True :
+        all_coordinates = outer_complex_array, inner_complex_array
+        return all_coordinates
+    else:
+        all_coordinates = outer_complex_array
+        return all_coordinates
 
 
 if __name__ == "__main__":
@@ -80,3 +110,4 @@ if __name__ == "__main__":
 
     processed_image = preprocessText(rotated_image)
     contour_cells = getContour(rotated_image, processed_image)
+    print(contour_cells)
