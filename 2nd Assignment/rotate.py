@@ -92,12 +92,14 @@ def findRotationAngle(input_image, disp_image):
     display(disp_image)
 
     slope = np.mean(slope)
-    bb = np.degrees(np.arctan(slope))
+    temp = np.degrees(np.arctan(slope))
 
-    if np.degrees(np.arctan(slope)) > 0:
-        angle_degrees = -(90 - np.degrees(np.arctan(slope)))
+    if temp == 0:
+        angle_degrees = 0
+    elif temp > 0:
+        angle_degrees = -(90 - temp)
     else:
-        angle_degrees = (90 + np.degrees(np.arctan(slope)))
+        angle_degrees = (90 + temp)
 
     print("DFT angle", angle_degrees)
 
@@ -220,7 +222,7 @@ def preprocessText(input_image):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("image2.png")
+    image = cv2.imread("text1.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
 
