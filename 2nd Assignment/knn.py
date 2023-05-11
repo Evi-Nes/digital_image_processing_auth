@@ -48,7 +48,27 @@ def detectLines(input_image, display_image):
 
     coordinates = {}
     # Extract each line of text from the original image
-    for i, contour in enumerate(contours):
+
+    # Merge contours that are close enough together
+    merged_contours = []
+    current_contour = contours[0]
+
+    for contour in contours[1:]:
+        # Check if the current contour is close enough to the next contour
+        x1, y1, w1, h1 = cv2.boundingRect(current_contour)
+        x2, y2, w2, h2 = cv2.boundingRect(contour)
+        if y2 -y1 < h1 / 2:
+            # Merge the contours into a single contour
+            current_contour = cv2.convexHull(np.concatenate((current_contour, contour)))
+        else:
+            # Add the current contour to the list of merged contours
+            merged_contours.append(current_contour)
+            current_contour = contour
+
+    # Add the last contour to the list of merged contours
+    merged_contours.append(current_contour)
+
+    for i, contour in enumerate(merged_contours):
         # Extract the bounding box coordinates for the contour
         x, y, w, h = cv2.boundingRect(contour)
 
