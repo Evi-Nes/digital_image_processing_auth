@@ -222,7 +222,7 @@ def preprocessText(input_image):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("text1.png")
+    image = cv2.imread("image222.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
 
