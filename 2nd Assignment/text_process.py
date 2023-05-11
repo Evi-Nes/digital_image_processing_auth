@@ -125,10 +125,13 @@ def getDFT(input_array, inner):
 
     return description
 
-def compareDFT(original, test):
+def compareDFT(original, test, inner):
     for i in range(len(test)):
         if np.allclose(original, test[i, :], rtol=1, atol=1):
-            print("The letter is: ", i)
+            if inner:
+                print("The letter is: ", i)
+            else:
+                print("The letter is: ", i)
     return i
 
 
@@ -186,4 +189,4 @@ if __name__ == "__main__":
                 zeros[:len(result_test)] = result_test
                 results_test = zeros
 
-        final = compareDFT(result, results_test)
+        final = compareDFT(result, results_test, has_inner)
