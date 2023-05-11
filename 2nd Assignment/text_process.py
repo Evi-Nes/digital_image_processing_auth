@@ -98,23 +98,23 @@ def getContour(original_image, input_image):
 
     if inner == True:
         all_coordinates = outer_complex_array, inner_complex_array
-        return all_coordinates
+        return all_coordinates, inner
     else:
         all_coordinates = outer_complex_array
-        return all_coordinates
+        return all_coordinates, inner
 
-def getDFT(input_array):
+def getDFT(input_array, inner):
     """
     Get the DFT of the input array
     :param input_array: the input array
     :return: the DFT of the input array
     """
-    if len(input_array) != 2:
+    if not inner:
         dft = np.fft.fft(input_array)
         description = np.abs(dft[1::])
     else:
-        print(input_array[0])
-        outer = input_array[0]
+        # print(input_array[0])
+        # outer = input_array[0]
         dft_outer = np.fft.fft(input_array[0])
         description_outer = np.abs(dft_outer[1::])
 
@@ -133,26 +133,31 @@ def compareDFT(original, test):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("1.png")
+    image = cv2.imread("3.png")
     rotated_image = np.copy(image)
 
     processed_image = preprocessText(rotated_image)
-    contour_cells = getContour(rotated_image, processed_image)
-    # print(len(contour_cells))
-    result = getDFT(contour_cells)
+    contour_cells, has_inner = getContour(rotated_image, processed_image)
+    result = getDFT(contour_cells, has_inner)
 
-    results_test = np.ones_like(3, result)
+    # results_test = np.ones_like(result, 3)
+    results_test = np.empty((0, len(result)), dtype=int)
     letters = [1, 2, 3, 4]
-    if len(result) == 1:
+
+    if has_inner:
         for i in letters[1::2]:
             filename = str(i) + ".png"
             image_test = cv2.imread(filename)
             rotated_image_test = np.copy(image_test)
 
             processed_image_test = preprocessText(rotated_image_test)
-            contour_cells_test = getContour(rotated_image_test, processed_image_test)
-            result_test = getDFT(contour_cells_test)
-            results_test[i] = result_test
+            contour_cells_test, inner = getContour(rotated_image_test, processed_image_test)
+            result_test = getDFT(contour_cells_test, inner)
+            if i != 2:
+                results_test = np.vstack((results_test, result_test))
+            else:
+                results_test = result_test
+            # results_test[i] = result_test
 
     else:
         for i in letters[::2]:
@@ -161,9 +166,22 @@ if __name__ == "__main__":
             rotated_image_test = np.copy(image_test)
 
             processed_image_test = preprocessText(rotated_image_test)
-            contour_cells_test = getContour(rotated_image_test, processed_image_test)
-            result_test = getDFT(contour_cells_test)
-            results_test[i] = result_test
+            contour_cells_test, inner = getContour(rotated_image_test, processed_image_test)
+            result_test = getDFT(contour_cells_test, inner)
+            # results_test[i] = result_test
+            if i != 1:
+                zeros = np.zeros_like(result)
+
+                # copy the values of 'arr' into 'zeros'
+                zeros[:len(result_test)] = result_test
+
+                results_test = np.vstack((results_test, zeros))
+            else:
+                zeros = np.zeros_like(result)
+
+                # copy the values of 'arr' into 'zeros'
+                zeros[:len(result_test)] = result_test
+                results_test = zeros
 
     final = compareDFT(result, results_test)
     print(final)
