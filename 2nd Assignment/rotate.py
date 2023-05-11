@@ -64,24 +64,15 @@ def findRotationAngle(input_image, disp_image):
     dst = np.zeros((height, width), dtype=np.int16)
 
     # Apply Canny edge detection and HoughLines function
-    edges = cv2.Canny(src, dst, 210, 235, 3, False)
-
-    # Perform connected component analysis
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges)
-
-    # Define size threshold and remove small objects
-    min_size = 10
-    for i in range(1, num_labels):
-        if stats[i, cv2.CC_STAT_AREA] < min_size:
-            edges[labels == i] = 0
-
-    # display(edges)
-
-    lines = cv2.HoughLinesP(edges, 2, np.pi / 180, 20, np.array([]), minLineLength=20, maxLineGap=5)
-    lines = lines.squeeze()
+    edges = cv2.Canny(src, dst, 200, 235, 3, False)
 
     center = (width // 2, height // 2)
-    radius = 110
+    radius = 180
+    display(edges)
+
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 5, np.array([]), minLineLength=20, maxLineGap=2)
+    lines = lines.squeeze()
+
     slope = np.array([])
 
     # Calculate the slope of each line and draw the lines on the image
@@ -147,7 +138,8 @@ def serialSearch(input_image, angle_degrees):
     calculated_angle = range_degrees[index]
     print("serial angle", calculated_angle)
 
-    final_angle = np.int32((calculated_angle + angle_degrees)/2)
+    # final_angle = np.int32((calculated_angle + angle_degrees)/2)
+    final_angle = np.int32((calculated_angle*0.5 + angle_degrees*0.1)/0.6)
     print("final angle", final_angle)
 
     return final_angle
@@ -214,15 +206,15 @@ def preprocessText(input_image):
 
     # dilate the image
     dilated_image = cv2.dilate(inverted_image, kernel, iterations=1)
-    display(dilated_image)
+    # display(dilated_image)
 
     # Remove the dilated image from the original image
     result_image = cv2.subtract(grayscale, dilated_image)
-    display(result_image)
+    # display(result_image)
 
     kernel = np.ones((5, 5), np.uint8)
     erosion = cv2.erode(result_image, kernel, iterations=1)
-    display(erosion)
+    # display(erosion)
 
     return result_image
 

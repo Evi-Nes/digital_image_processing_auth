@@ -187,4 +187,3 @@ if __name__ == "__main__":
                 results_test = zeros
 
         final = compareDFT(result, results_test)
-        print(final)
