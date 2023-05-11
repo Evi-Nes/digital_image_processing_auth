@@ -79,9 +79,9 @@ def detectLines(input_image, display_image):
         cv2.imwrite(f"lines/line{i + 1}.png", line)
     return coordinates
 
-def detectWords(coordinates, thresh, display_image):
-    for i in range(len(coordinates)):
-        x, y, w, h = coordinates[i]
+def detectWords(lcoordinates, thresh, display_image):
+    for i in range(len(lcoordinates)):
+        x, y, w, h = lcoordinates[i]
         # Extract the line of text from the original image
         line = thresh[y:y + h, x:x + w]
         line = cv2.blur(line, (4, 4))
@@ -91,25 +91,52 @@ def detectWords(coordinates, thresh, display_image):
 
         # Sort the contours from left to right based on their x-coordinate values
         contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
-
+        coordinates = {}
         # Iterate through each contour and compute the bounding rectangle
         for j, contour in enumerate(contours):
             # Extract the bounding box coordinates for the contour
             x2, y2, w2, h2 = cv2.boundingRect(contour)
+            coordinates[i] = (x2, y2, w2, h2)
             # Extract the word from the original image
             word = display_image[y + y2:y + y2 + h2, x + x2:x + x2 + w2]
             # display_image(word)
             # Save the word image to a file
             cv2.imwrite(f"words/line{i + 1}_word{j + 1}.png", word)
+    return coordinates
 
+def detectLetters(wcoordinates, thresh, display_image):
+    for i in range(len(wcoordinates)):
+        for j in range(len(wcoordinates[i])):
+            x, y, w, h = wcoordinates[i][j]
+            # Extract the line of text from the original image
+            word = thresh[y:y + h, x:x + w]
+            word = cv2.blur(word, (4, 4))
+            # display(word)
+            # Find the contours in the line image
+            contours, hierarchy = cv2.findContours(word, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Sort the contours from left to right based on their x-coordinate values
+            contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
+            coordinates = {}
+            # Iterate through each contour and compute the bounding rectangle
+            for k, contour in enumerate(contours):
+                # Extract the bounding box coordinates for the contour
+                x2, y2, w2, h2 = cv2.boundingRect(contour)
+                coordinates[i][j][k] = (x2, y2, w2, h2)
+                # Extract the word from the original image
+                letter = display_image[y + y2:y + y2 + h2, x + x2:x + x2 + w2]
+                # display_image(word)
+                # Save the word image to a file
+                cv2.imwrite(f"letters/line{i + 1}_word{j + 1}_letter{k + 1}.png", letter)
+    return coordinates
 
 if __name__ == "__main__":
     image = cv2.imread("text1.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
     coordinates ={}
-    coordinates = detectLines(connected, display_image)
-    detectWords(coordinates, thresh, display_image)
-
+    wcoordinates = detectLines(connected, display_image)
+    lcoordinates = detectWords(wcoordinates, thresh, display_image)
+    detectLetters(lcoordinates, thresh, display_image)
 
 
