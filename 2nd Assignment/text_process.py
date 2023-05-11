@@ -127,7 +127,7 @@ def getDFT(input_array, inner):
 
 def compareDFT(original, test):
     for i in range(len(test)):
-        if np.allclose(original, test[i], rtol=1e-05, atol=1e-08):
+        if np.allclose(original, test[i, :], rtol=1, atol=1):
             print("The letter is: ", i)
     return i
 
@@ -159,6 +159,9 @@ if __name__ == "__main__":
                 results_test = result_test
             # results_test[i] = result_test
 
+        final = compareDFT(result, results_test)
+        print(final)
+
     else:
         for i in letters[::2]:
             filename = str(i) + ".png"
@@ -183,5 +186,5 @@ if __name__ == "__main__":
                 zeros[:len(result_test)] = result_test
                 results_test = zeros
 
-    final = compareDFT(result, results_test)
-    print(final)
+        final = compareDFT(result, results_test)
+        print(final)
