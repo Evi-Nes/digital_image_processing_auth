@@ -40,7 +40,7 @@ def preprocessText(input_image):
     eroded_image = cv2.erode(inverted_image, kernel, iterations=1)
 
     final_image = np.copy(eroded_image)
-    # display(final_image, "final_image")
+    display(final_image, "final_image")
 
     return final_image
 
@@ -94,7 +94,7 @@ def getContour(original_image, input_image):
         contoured_image = cv2.drawContours(original_image, outer_contours, -1, (255, 0, 0), 2)
     if len(inner_contours) > 0:
         contoured_image = cv2.drawContours(original_image, inner_contours, -1, (0, 0, 255), 2)
-    # display(contoured_image, "contours")
+    display(contoured_image, "contours")
 
     if inner == True:
         all_coordinates = outer_complex_array, inner_complex_array
@@ -136,7 +136,7 @@ def compareDFT(original, test, inner):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("3.png")
+    image = cv2.imread("2.png")
     rotated_image = np.copy(image)
 
     processed_image = preprocessText(rotated_image)
