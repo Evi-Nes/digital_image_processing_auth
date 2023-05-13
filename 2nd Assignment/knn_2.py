@@ -2,51 +2,116 @@ import cv2
 import numpy as np
 from scipy.signal import find_peaks
 
-# Load the image and convert to grayscale
-img = cv2.imread('text1.png')
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+debug = True
 
-# Apply binary thresholding to create a binary image
-thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+def display(input_image, frame_name="OpenCV Image"):
+    if not debug:
+        return
+    h, w = input_image.shape[0:2]
+    new_w = 800
+    new_h = int(new_w * (h / w))
+    input_image = cv2.resize(input_image, (new_w, new_h))
+    cv2.imshow(frame_name, input_image)
+    cv2.waitKey(0)
 
-# Perform DFT to analyze the frequency components
-dft = cv2.dft(np.float32(thresh), flags=cv2.DFT_COMPLEX_OUTPUT)
-magnitude = cv2.magnitude(dft[:, :, 0], dft[:, :, 1])
-magnitude = cv2.log(1 + magnitude)
+def preprocessImage(input_image):
+    """
+    Preprocess the image to get the text regions
+    :param input_image: the given image
+    :return: connected_image the image with connected text regions
+    bw_image: the binarized image
+    """
+    grayscale = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
 
-# Compute the vertical projection of brightness
-vertical_projection = np.sum(thresh, axis=1)
-img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-vertical_projection = cv2.reduce(img_gray, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
+    # find the gradient map
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    grad = cv2.morphologyEx(grayscale, cv2.MORPH_GRADIENT, kernel)
 
-# Smooth the vertical projection with a Gaussian filter
-vertical_projection = cv2.GaussianBlur(vertical_projection, (5, 5), 0)
+    # display(grad)
 
-# Find the peaks in the vertical projection
-row_sum = np.sum(vertical_projection, axis=1)
-row_sum = row_sum.astype(np.float32)
+    # Binarize the gradient image
+    _, bw_image = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    # display(bw_image)
 
-peaks, _ = find_peaks(row_sum, height=100, distance=20)
-coordinates = {}
+    # connect horizontally oriented regions
+    # kernel value (9,1) can be changed to improve the text detection
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
+    connected_image = cv2.morphologyEx(bw_image, cv2.MORPH_CLOSE, kernel)
+    # display(connected_image)
 
-# Draw the detected lines on the original image
-for i, peak in enumerate(peaks):
-    coordinates[i] = peak
-    cv2.line(img, (0, peak), (img.shape[1], peak), (0, 0, 255), thickness=2)
+    return connected_image, bw_image
 
-# Display the image with detected lines
-cv2.imshow('Detected Lines', img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+def detectLines(input_image, display_img):
+    # Compute the vertical projection of brightness
+    vertical_projection = cv2.reduce(input_image, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
 
-for i in range(len(coordinates)):
-    if i == 0:
-        line = img[0:coordinates[i], 0:img.shape[1]]
-    elif i == (len(coordinates) - 1):
-        line = img[coordinates[i]:coordinates[i]+25, 0:img.shape[1]]
-    else:
-        line = img[coordinates[i-1]:coordinates[i], 0:img.shape[1]]
+    # Smooth the vertical projection with a Gaussian filter
+    vertical_projection = cv2.GaussianBlur(vertical_projection, (5, 5), 0)
 
-    # Save the line image to a file
-    cv2.imwrite(f"lines/line{i + 1}.png", line)
+    # Find the peaks in the vertical projection
+    row_sum = np.sum(vertical_projection, axis=1)
+    # row_sum = row_sum.astype(np.float32)
 
+    peaks, _ = find_peaks(row_sum, height=100, distance=20)
+    coordinates = {}
+
+    # Draw the detected lines on the original image
+    for i, peak in enumerate(peaks):
+        coordinates[i] = peak
+        line = display_image[peak - 15:peak + 15, 0:input_image.shape[1]]
+
+        # Save the line image to a file
+        # cv2.line(display_img, (0, peak), (input_image.shape[1], peak), (0, 0, 255), thickness=2)
+        cv2.imwrite(f"lines/line{i + 1}.png", line)
+
+    # # Display the image with detected lines
+    # cv2.imshow('Detected Lines', display_img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    return coordinates
+
+def detectWords(input_coordinates, input_image, display_img):
+    display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
+
+    for i in range(len(input_coordinates)):
+        x, y, w, h = 0, input_coordinates[i]-15, input_image.shape[1], 30
+        line = display_img[y:y + h, x:x + w]
+        # line = cv2.blur(line, (4, 4))
+
+        # Compute the horizontal projection of brightness
+        horizontal_projection = cv2.reduce(line, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
+
+        # Smooth the horizontal projection with a Gaussian filter
+        horizontal_projection = cv2.GaussianBlur(horizontal_projection, (5, 5), 0)
+        col_sum = np.sum(horizontal_projection, axis=0)
+
+        # Find the peaks in the horizontal projection
+        peaks, _ = find_peaks(col_sum, height=100, distance=20)
+
+        coordinates = {}
+        # Draw the detected lines on the original image
+        for j, peak in enumerate(peaks):
+            coordinates[j] = peak
+            if j == 0:
+                word = line[0:line.shape[0], 0:peak]
+            elif j == len(input_coordinates)-1:
+                word = line[0:line.shape[0], peak:line.shape[1]]
+            else:
+                word = line[0:line.shape[0], coordinates[j-1]:peak]
+
+            # Save the line image to a file
+            # cv2.line(display_img, (0, peak), (input_image.shape[1], peak), (0, 0, 255), thickness=2)
+            cv2.imwrite(f"words/line{i + 1}_word{j + 1}.png", word)
+
+    return peaks
+
+if __name__ == "__main__":
+    image = cv2.imread("text1.png")
+    display_image = np.copy(image)
+    connected, thresh = preprocessImage(image)
+    # wcoordinates = {}
+    wcoordinates = detectLines(thresh, display_image)
+
+    lcoordinates = detectWords(wcoordinates, thresh, display_image)
+    # detectLetters(lcoordinates, thresh, display_image)
