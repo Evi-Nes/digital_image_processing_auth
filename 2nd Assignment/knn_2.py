@@ -148,12 +148,10 @@ def detectWords(input_coordinates, input_image, display_img):
             continue
         x, y, w, h = 15, input_coordinates[i] - 35, input_image.shape[1]-20, 60
         line = display_img[y:y + h, x:x + w]
-        line = cv2.blur(line, (25, 25))
-        # cv2.imshow("each line", line)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        lineb = cv2.blur(line, (25, 25))
+
         # Compute the horizontal projection of brightness
-        horizontal_projection = cv2.reduce(line, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
+        horizontal_projection = cv2.reduce(lineb, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
 
         # Smooth the horizontal projection with a Gaussian filter
         horizontal_projection = cv2.GaussianBlur(horizontal_projection, (5, 5), 0)
@@ -161,25 +159,25 @@ def detectWords(input_coordinates, input_image, display_img):
 
         # Find the peaks in the horizontal projection
         peaks, _ = find_peaks(col_sum, height=15000, distance=60)
-
         coordinates = {}
+
         # Draw the detected lines on the original image
         for j, peak in enumerate(peaks):
             coordinates[j] = peak
-            # if j == 0:
-            #     word = line[0:line.shape[0], 0:peak]
-            # elif j == len(input_coordinates)-1:
-            #     word = line[0:line.shape[0], peak:line.shape[1]]
-            # else:
-            #     word = line[0:line.shape[0], coordinates[j-1]:peak]
+            if j == 0:
+                word = line[0:line.shape[0], 0:peak]
+            elif j == len(input_coordinates)-1:
+                word = line[0:line.shape[0], peak:line.shape[1]-15]
+            else:
+                word = line[0:line.shape[0], coordinates[j-1]:peak]
 
             # Save the line image to a file (x,y)
-            cv2.line(line, (peak, 0), (peak, line.shape[0]), (0, 0, 255), thickness=2)
-            # cv2.imwrite(f"words/line{i + 1}_word{j + 1}.png", word)
+            # cv2.line(line, (peak, 0), (peak, line.shape[0]), (0, 0, 255), thickness=2)
+            # cv2.imwrite(f"words/line{i}_word{j + 1}.png", word)
 
-        cv2.imshow('Detected Lines', line)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow('Detected Lines', line)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
     return peaks
 def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
