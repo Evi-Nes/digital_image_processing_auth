@@ -160,7 +160,7 @@ def detectWords(input_coordinates, input_image, display_img):
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=3000, distance=60)
+        peaks, _ = find_peaks(col_sum, height=15000, distance=60)
 
         coordinates = {}
         # Draw the detected lines on the original image
