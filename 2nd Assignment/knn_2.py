@@ -74,7 +74,7 @@ def detectLines(input_image, display_img):
     vertical_projection = cv2.reduce(input_image, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
 
     # Smooth the vertical projection with a Gaussian filter
-    vertical_projection = cv2.GaussianBlur(vertical_projection, (5, 5), 0)
+    vertical_projection = cv2.GaussianBlur(vertical_projection, (3, 3), 0)
 
     # Find the peaks in the vertical projection
     row_sum = np.sum(vertical_projection, axis=1)
@@ -82,20 +82,24 @@ def detectLines(input_image, display_img):
 
     peaks, _ = find_peaks(row_sum, height=100, distance=20)
     coordinates = {}
-
+    display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
     # Draw the detected lines on the original image
     for i, peak in enumerate(peaks):
-        coordinates[i] = peak
-        line = display_image[peak - 15:peak + 15, 0:input_image.shape[1]]
+        if i%2 == 1:
+            coordinates[i] = peak + 15
+            line = display_image[peak - 20:peak + 35, 0:input_image.shape[1]]
 
-        # Save the line image to a file
-        # cv2.line(display_img, (0, peak), (input_image.shape[1], peak), (0, 0, 255), thickness=2)
-        cv2.imwrite(f"lines/line{i + 1}.png", line)
+            # Save the line image to a file
+            cv2.line(display_img, (0, peak+10), (input_image.shape[1], peak+10), (0, 0, 255), thickness=2)
+            cv2.imwrite(f"lines/line{i + 1}.png", line)
+
+        else:
+            continue
 
     # # Display the image with detected lines
-    # cv2.imshow('Detected Lines', display_img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    cv2.imshow('Detected Lines', display_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
     return coordinates
 
@@ -122,7 +126,7 @@ def detectWords(input_coordinates, input_image, display_img):
             word = display_image[y + y2:y + y2 + h2, x + x2:x + x2 + w2]
             # display_image(word)
             # Save the word image to a file
-            cv2.imwrite(f"words/line{l + 1}_word{j + 1}.png", word)
+            # cv2.imwrite(f"words/line{l + 1}_word{j + 1}.png", word)
         lcoordinates[l] = coordinates
 
     return lcoordinates
@@ -163,7 +167,7 @@ def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
                 letter = word_image[y2:y2 + h2, x2:x2 + w2]
                 # display_image(letter)
                 # Save the word image to a file
-                cv2.imwrite(f"letters/line{l + 1}_word{i +1}_letter{j + 1}.png", letter)
+                # cv2.imwrite(f"letters/line{l + 1}_word{i +1}_letter{j + 1}.png", letter)
             letcoordinates = letcoords
 
     return letcoordinates
@@ -173,7 +177,7 @@ if __name__ == "__main__":
     image = cv2.imread("text1_v2.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
-
+    display(thresh, "thresh")
     lines_coordinates = detectLines(thresh, display_image)
     words_coordinates = detectWords(lines_coordinates, thresh, display_image)
     proccessed_image = preprocessText(display_image)
