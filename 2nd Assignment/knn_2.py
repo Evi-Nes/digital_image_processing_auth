@@ -148,11 +148,11 @@ def detectWords(input_coordinates, input_image, display_img):
 
     return coords
 def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
-
+    each_line = []
     for l in range(len(lcoordinates)):
         xl, yl, wl, hl = 15, lcoordinates[l] - 35, input_image.shape[1]-20, 60
         line_image = input_image[yl:yl + hl, xl:xl + wl]
-
+        each_word = []
         for i, peak in enumerate(wcoordinates[l]):
             if i == 0:
                 word_image = line_image[0:line_image.shape[0], 5:peak]
@@ -162,32 +162,34 @@ def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
                 word_image = line_image[0:line_image.shape[0], wcoordinates[l][i-1]:peak]
 
             word_image = cv2.blur(word_image, (3, 3))
-            cv2.imshow("word", word_image)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            # cv2.imshow("word", word_image)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
             # Find the contours in the word image
             contours, hierarchy = cv2.findContours(word_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             # Sort the contours from left to right based on their x-coordinate values
             contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
-            letcoords = {}
 
             # Iterate through each contour and compute the bounding rectangle
             for j, contour in enumerate(contours):
                 # Extract the bounding box coordinates for the contour
                 x2, y2, w2, h2 = cv2.boundingRect(contour)
-                letcoords[i] = (x2-3, y2-6, w2+3, h2+7)
-                # Extract the word from the original image
-                letter = word_image[y2-6:y2+7 + h2, x2-3:x2+3 + w2]
-                cv2.imshow("letter", letter)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                # Save the word image to a file
-                # cv2.imwrite(f"letters/line{l}_word{i +1}_letter{j + 1}.png", letter)
-            letcoordinates = letcoords
+                let_coords = x2-3, y2-3, w2+3, h2+7
+                each_word.append(let_coords)
 
-    return letcoordinates
+                # Extract the word from the original image
+                letter = word_image[y2:y2 + h2, x2:x2 + w2]
+                # cv2.imshow("letter", letter)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
+
+                # Save the word image to a file
+                cv2.imwrite(f"letters/line{l+1}_word{i +1}_letter{j + 1}.png", letter)
+            each_line.append(each_word)
+
+    return each_line
 
 
 if __name__ == "__main__":
