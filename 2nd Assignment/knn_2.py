@@ -148,7 +148,7 @@ def detectWords(input_coordinates, input_image, display_img):
             continue
         x, y, w, h = 15, input_coordinates[i] - 35, input_image.shape[1]-20, 60
         line = display_img[y:y + h, x:x + w]
-        line = cv2.blur(line, (15, 15))
+        line = cv2.blur(line, (25, 25))
         # cv2.imshow("each line", line)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
@@ -160,7 +160,7 @@ def detectWords(input_coordinates, input_image, display_img):
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=100, distance=20)
+        peaks, _ = find_peaks(col_sum, height=3000, distance=60)
 
         coordinates = {}
         # Draw the detected lines on the original image
