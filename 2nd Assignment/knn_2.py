@@ -72,7 +72,6 @@ def preprocessText(input_image):
 
     return final_image
 
-
 def detectLines(input_image, display_img):
     # Compute the vertical projection of brightness
     vertical_projection = cv2.reduce(input_image, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
@@ -102,50 +101,16 @@ def detectLines(input_image, display_img):
     # cv2.imshow('Detected Lines', display_img)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-
-    return coordinates
-
-# def detectWords(input_coordinates, input_image, display_img):
-#     # display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
-#     lcoordinates = {}
-#     for l in range(len(input_coordinates)):
-#         if l % 2 == 0:
-#             continue
-#
-#         x, y, w, h = 15, input_coordinates[l] - 35, input_image.shape[1]-20, 60
-#         line = input_image[y:y + h, x:x + w]
-#         line = cv2.blur(line, (15, 15))
-#
-#         # Find the contours in the line image
-#         contours, hierarchy = cv2.findContours(line, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-#
-#         # Sort the contours from left to right based on their x-coordinate values
-#         contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
-#         coordinates = {}
-#
-#         # Iterate through each contour and compute the bounding rectangle
-#         for j, contour in enumerate(contours):
-#             # Extract the bounding box coordinates for the contour
-#             x2, y2, w2, h2 = cv2.boundingRect(contour)
-#             coordinates[j] = (x2, y2, w2, h2)
-#
-#             # Extract the word from the original image
-#             word = display_image[y + y2:y + y2 + h2, x + x2:x + x2 + w2]
-#             # cv2.imshow("word", word)
-#             # cv2.waitKey(0)
-#             # cv2.destroyAllWindows()
-#             # Save the word image to a file
-#             # cv2.imwrite(f"words/line{l}_word{j+1}.png", word)
-#         lcoordinates[l] = coordinates
-#
-#     return lcoordinates
+    normal_coordinates = [coordinates[k] for k in range(1, len(coordinates), 2)]
+    return normal_coordinates
 
 def detectWords(input_coordinates, input_image, display_img):
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
+    coords = []
 
     for i in range(len(input_coordinates)):
-        if i % 2 == 0:
-            continue
+        # if i % 2 == 0:
+        #     continue
         x, y, w, h = 15, input_coordinates[i] - 35, input_image.shape[1]-20, 60
         line = display_img[y:y + h, x:x + w]
         lineb = cv2.blur(line, (25, 25))
@@ -159,42 +124,47 @@ def detectWords(input_coordinates, input_image, display_img):
 
         # Find the peaks in the horizontal projection
         peaks, _ = find_peaks(col_sum, height=15000, distance=60)
-        coordinates = {}
+        coordinates = []
 
         # Draw the detected lines on the original image
         for j, peak in enumerate(peaks):
-            coordinates[j] = peak
+            coordinates.append(peak)
+
             if j == 0:
-                word = line[0:line.shape[0], 0:peak]
+                word = line[0:line.shape[0], 15:peak]
             elif j == len(input_coordinates)-1:
                 word = line[0:line.shape[0], peak:line.shape[1]-15]
             else:
                 word = line[0:line.shape[0], coordinates[j-1]:peak]
-
-            # Save the line image to a file (x,y)
-            # cv2.line(line, (peak, 0), (peak, line.shape[0]), (0, 0, 255), thickness=2)
+                # Save the line image to a file (x,y)
+                # cv2.line(line, (peak, 0), (peak, line.shape[0]), (0, 0, 255), thickness=2)
             # cv2.imwrite(f"words/line{i}_word{j + 1}.png", word)
+
+        coords.append(coordinates)
 
         # cv2.imshow('Detected Lines', line)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-    return peaks
+    return coords
 def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
 
     for l in range(len(lcoordinates)):
-        if l % 2 == 0:
-            continue
         xl, yl, wl, hl = 15, lcoordinates[l] - 35, input_image.shape[1]-20, 60
         line_image = input_image[yl:yl + hl, xl:xl + wl]
 
-        for i in range(len(wcoordinates[l])):
-            x, y, w, h = wcoordinates[l][i]
-            word_image = line_image[y:y + h, x:x + w]
-            # word_image = cv2.blur(word_image, (3, 3))
-            # cv2.imshow("word", word_image)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+        for i, peak in enumerate(wcoordinates[l]):
+            if i == 0:
+                word_image = line_image[0:line_image.shape[0], 5:peak]
+            elif i == len(lcoordinates)-1:
+                word_image = line_image[0:line_image.shape[0], peak:line_image.shape[1]-15]
+            else:
+                word_image = line_image[0:line_image.shape[0], wcoordinates[l][i-1]:peak]
+
+            word_image = cv2.blur(word_image, (3, 3))
+            cv2.imshow("word", word_image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
             # Find the contours in the word image
             contours, hierarchy = cv2.findContours(word_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -214,7 +184,7 @@ def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 # Save the word image to a file
-                cv2.imwrite(f"letters/line{l}_word{i +1}_letter{j + 1}.png", letter)
+                # cv2.imwrite(f"letters/line{l}_word{i +1}_letter{j + 1}.png", letter)
             letcoordinates = letcoords
 
     return letcoordinates
