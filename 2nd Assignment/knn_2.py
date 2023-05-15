@@ -115,9 +115,7 @@ def detectWords(input_coordinates, input_image, display_img):
         x, y, w, h = 15, input_coordinates[l] - 35, input_image.shape[1]-20, 60
         line = input_image[y:y + h, x:x + w]
         line = cv2.blur(line, (15, 15))
-        # cv2.imshow("word", line)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+
         # Find the contours in the line image
         contours, hierarchy = cv2.findContours(line, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -137,30 +135,26 @@ def detectWords(input_coordinates, input_image, display_img):
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
             # Save the word image to a file
-            cv2.imwrite(f"words/line{l}_word{j+1}.png", word)
+            # cv2.imwrite(f"words/line{l}_word{j+1}.png", word)
         lcoordinates[l] = coordinates
 
     return lcoordinates
 
-
 def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
-    display(input_image, "input_image")
-    # define the kernel
-    kernel = np.ones((1, 1), np.uint8)
-    # erode the image
-    input_image = cv2.erode(input_image, kernel,
-                            iterations=1)
-    display(input_image, "input_image")
 
     for l in range(len(lcoordinates)):
-        xl, yl, wl, hl = 0, lcoordinates[l] - 15, input_image.shape[1], 30
+        if l % 2 == 0:
+            continue
+        xl, yl, wl, hl = 15, lcoordinates[l] - 35, input_image.shape[1]-20, 60
         line_image = input_image[yl:yl + hl, xl:xl + wl]
 
         for i in range(len(wcoordinates[l])):
             x, y, w, h = wcoordinates[l][i]
             word_image = line_image[y:y + h, x:x + w]
             # word_image = cv2.blur(word_image, (3, 3))
-            # display(word_image, "word_image")
+            # cv2.imshow("word", word_image)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
             # Find the contours in the word image
             contours, hierarchy = cv2.findContours(word_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -173,12 +167,14 @@ def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
             for j, contour in enumerate(contours):
                 # Extract the bounding box coordinates for the contour
                 x2, y2, w2, h2 = cv2.boundingRect(contour)
-                letcoords[i] = (x2, y2, w2, h2)
+                letcoords[i] = (x2-3, y2-6, w2+3, h2+7)
                 # Extract the word from the original image
-                letter = word_image[y2:y2 + h2, x2:x2 + w2]
-                # display_image(letter)
+                letter = word_image[y2-6:y2+7 + h2, x2-3:x2+3 + w2]
+                cv2.imshow("letter", letter)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
                 # Save the word image to a file
-                # cv2.imwrite(f"letters/line{l + 1}_word{i +1}_letter{j + 1}.png", letter)
+                cv2.imwrite(f"letters/line{l}_word{i +1}_letter{j + 1}.png", letter)
             letcoordinates = letcoords
 
     return letcoordinates
@@ -192,4 +188,4 @@ if __name__ == "__main__":
     lines_coordinates = detectLines(thresh, display_image)
     words_coordinates = detectWords(lines_coordinates, thresh, display_image)
     proccessed_image = preprocessText(display_image)
-    letters_coordinates = detectLetters(words_coordinates, lines_coordinates, thresh, display_image)
+    letters_coordinates = detectLetters(words_coordinates, lines_coordinates, proccessed_image, display_image)
