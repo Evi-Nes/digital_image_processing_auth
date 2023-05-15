@@ -4,6 +4,7 @@ from scipy.signal import find_peaks
 
 debug = True
 
+
 def display(input_image, frame_name="OpenCV Image"):
     if not debug:
         return
@@ -13,6 +14,7 @@ def display(input_image, frame_name="OpenCV Image"):
     input_image = cv2.resize(input_image, (new_w, new_h))
     cv2.imshow(frame_name, input_image)
     cv2.waitKey(0)
+
 
 def preprocessImage(input_image):
     """
@@ -40,6 +42,7 @@ def preprocessImage(input_image):
     # display(connected_image)
 
     return connected_image, bw_image
+
 
 def preprocessText(input_image):
     """
@@ -69,6 +72,7 @@ def preprocessText(input_image):
 
     return final_image
 
+
 def detectLines(input_image, display_img):
     # Compute the vertical projection of brightness
     vertical_projection = cv2.reduce(input_image, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
@@ -78,28 +82,26 @@ def detectLines(input_image, display_img):
 
     # Find the peaks in the vertical projection
     row_sum = np.sum(vertical_projection, axis=1)
-    # row_sum = row_sum.astype(np.float32)
 
     peaks, _ = find_peaks(row_sum, height=100, distance=20)
     coordinates = {}
-    display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
+
     # Draw the detected lines on the original image
     for i, peak in enumerate(peaks):
-        if i%2 == 1:
-            coordinates[i] = peak + 15
+        if i % 2 == 1:
+            coordinates[i] = peak + 10
             line = display_image[peak - 20:peak + 35, 0:input_image.shape[1]]
 
             # Save the line image to a file
-            cv2.line(display_img, (0, peak+10), (input_image.shape[1], peak+10), (0, 0, 255), thickness=2)
-            cv2.imwrite(f"lines/line{i + 1}.png", line)
-
+            # cv2.line(display_img, (0, peak + 10), (input_image.shape[1], peak + 10), (0, 0, 255), thickness=2)
+            # cv2.imwrite(f"lines/line{i}.png", line)
         else:
             continue
 
     # # Display the image with detected lines
-    cv2.imshow('Detected Lines', display_img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('Detected Lines', display_img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     return coordinates
 
@@ -107,29 +109,39 @@ def detectWords(input_coordinates, input_image, display_img):
     # display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
     lcoordinates = {}
     for l in range(len(input_coordinates)):
-        x, y, w, h = 0, input_coordinates[l]-15, input_image.shape[1], 30
-        line = input_image[y:y + h, x:x + w]
-        # line = cv2.blur(line, (3, 3))
+        if l % 2 == 0:
+            continue
 
+        x, y, w, h = 15, input_coordinates[l] - 35, input_image.shape[1]-20, 60
+        line = input_image[y:y + h, x:x + w]
+        line = cv2.blur(line, (15, 15))
+        # cv2.imshow("word", line)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         # Find the contours in the line image
         contours, hierarchy = cv2.findContours(line, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Sort the contours from left to right based on their x-coordinate values
         contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
         coordinates = {}
+
         # Iterate through each contour and compute the bounding rectangle
         for j, contour in enumerate(contours):
             # Extract the bounding box coordinates for the contour
             x2, y2, w2, h2 = cv2.boundingRect(contour)
             coordinates[j] = (x2, y2, w2, h2)
+
             # Extract the word from the original image
             word = display_image[y + y2:y + y2 + h2, x + x2:x + x2 + w2]
-            # display_image(word)
+            # cv2.imshow("word", word)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
             # Save the word image to a file
-            # cv2.imwrite(f"words/line{l + 1}_word{j + 1}.png", word)
+            cv2.imwrite(f"words/line{l}_word{j+1}.png", word)
         lcoordinates[l] = coordinates
 
     return lcoordinates
+
 
 def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
     display(input_image, "input_image")
@@ -137,9 +149,8 @@ def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
     kernel = np.ones((1, 1), np.uint8)
     # erode the image
     input_image = cv2.erode(input_image, kernel,
-                        iterations=1)
+                            iterations=1)
     display(input_image, "input_image")
-
 
     for l in range(len(lcoordinates)):
         xl, yl, wl, hl = 0, lcoordinates[l] - 15, input_image.shape[1], 30
@@ -177,7 +188,7 @@ if __name__ == "__main__":
     image = cv2.imread("text1_v2.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
-    display(thresh, "thresh")
+
     lines_coordinates = detectLines(thresh, display_image)
     words_coordinates = detectWords(lines_coordinates, thresh, display_image)
     proccessed_image = preprocessText(display_image)
