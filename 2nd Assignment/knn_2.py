@@ -65,7 +65,7 @@ def preprocessText(input_image):
     eroded_image = cv2.erode(inverted_image, kernel, iterations=1)
 
     final_image = np.copy(eroded_image)
-    display(final_image, "final_image")
+    # display(final_image, "final_image")
 
     return final_image
 
@@ -105,7 +105,7 @@ def detectWords(input_coordinates, input_image, display_img):
     for l in range(len(input_coordinates)):
         x, y, w, h = 0, input_coordinates[l]-15, input_image.shape[1], 30
         line = input_image[y:y + h, x:x + w]
-        line = cv2.blur(line, (3, 3))
+        # line = cv2.blur(line, (3, 3))
 
         # Find the contours in the line image
         contours, hierarchy = cv2.findContours(line, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -128,6 +128,15 @@ def detectWords(input_coordinates, input_image, display_img):
     return lcoordinates
 
 def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
+    display(input_image, "input_image")
+    # define the kernel
+    kernel = np.ones((1, 1), np.uint8)
+    # erode the image
+    input_image = cv2.erode(input_image, kernel,
+                        iterations=1)
+    display(input_image, "input_image")
+
+
     for l in range(len(lcoordinates)):
         xl, yl, wl, hl = 0, lcoordinates[l] - 15, input_image.shape[1], 30
         line_image = input_image[yl:yl + hl, xl:xl + wl]
@@ -161,11 +170,11 @@ def detectLetters(wcoordinates, lcoordinates, input_image, display_img):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("text1.png")
+    image = cv2.imread("text1_v2.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
 
     lines_coordinates = detectLines(thresh, display_image)
     words_coordinates = detectWords(lines_coordinates, thresh, display_image)
     proccessed_image = preprocessText(display_image)
-    letters_coordinates = detectLetters(words_coordinates, lines_coordinates, proccessed_image, display_image)
+    letters_coordinates = detectLetters(words_coordinates, lines_coordinates, thresh, display_image)
