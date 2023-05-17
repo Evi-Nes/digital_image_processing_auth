@@ -4,7 +4,13 @@ import numpy as np
 debug = True
 
 # Display image
-def display(input_image, frame_name="OpenCV Image"):
+def display(input_image, frame_name):
+    """
+    Function that displays the given image with the given frame name. If debug = False, will not display anything.
+    :param input_image: the given image
+    :param frame_name: the given name for the frame
+    :return:
+    """
     if not debug:
         return
     h, w = input_image.shape[0:2]
@@ -23,29 +29,28 @@ def preprocessImage(input_image):
     """
     grayscale = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
 
-    # find the gradient map
+    # Find the gradient map
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     grad = cv2.morphologyEx(grayscale, cv2.MORPH_GRADIENT, kernel)
-
-    # display(grad)
+    # display(grad, "gradient")
 
     # Binarize the gradient image
     _, bw_image = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    # display(bw_image)
+    # display(bw_image, "binarized")
 
-    # connect horizontally oriented regions
-    # kernel value (9,1) can be changed to improve the text detection
+    # Connect horizontally oriented regions
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
     connected_image = cv2.morphologyEx(bw_image, cv2.MORPH_CLOSE, kernel)
-    # display(connected_image)
+    # display(connected_image, "connected")
 
     return connected_image, bw_image
+
 def findRotationAngle(input_image, disp_image):
     """
     Find the angle of rotation of the image using DFT and magnitude spectrum
     :param disp_image: copy of the original image
     :param input_image: the preprocessed image
-    :return: the angle for rotation
+    :return: the calculated angle for rotation
     """
     height, width = input_image.shape[:2]
 
@@ -57,14 +62,13 @@ def findRotationAngle(input_image, disp_image):
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
     mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
 
-    # Create a copy of the magnitude spectrum and necessary variables
     src = mthresh
     src = np.array(src, dtype=np.int16)
     dst = np.zeros((height, width), dtype=np.int16)
 
     # Apply Canny edge detection and HoughLines function
     edges = cv2.Canny(src, dst, 200, 235, 3, False)
-    display(edges)
+    display(edges, "edges")
 
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 5, np.array([]), minLineLength=20, maxLineGap=2)
     lines = lines.squeeze()
@@ -72,6 +76,7 @@ def findRotationAngle(input_image, disp_image):
     slope = np.array([])
     center = (width // 2, height // 2)
     radius = 180
+
     # Calculate the slope of each line and draw the lines on the image
     for line in lines:
         x1, y1, x2, y2 = line
@@ -86,7 +91,7 @@ def findRotationAngle(input_image, disp_image):
         else:
             continue
 
-    display(disp_image)
+    display(disp_image, "lines")
 
     slope = np.mean(slope)
     temp = np.degrees(np.arctan(slope))
@@ -113,10 +118,10 @@ def serialSearch(input_image, angle_degrees):
     variance_normalized_f = np.array([])
 
     for possible_angle in range_degrees:
-        rotated_image = fastRotateImage(input_image, possible_angle)
+        rotated_img = rotateImage(input_image, possible_angle)
 
         # Calculate the DFT of the image and shift the zero-freq component to the center of the spectrum
-        f = np.fft.fft2(rotated_image)
+        f = np.fft.fft2(rotated_img)
         fshift = np.fft.fftshift(f)
 
         # Calculate the magnitude spectrum of the DFT
@@ -124,10 +129,8 @@ def serialSearch(input_image, angle_degrees):
         mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
         vertical_projection = np.sum(mthresh, axis=1)
 
-        # Compute the first derivative of the vertical projection
+        # Compute the first derivative of the vertical projection and the variance of the first derivative
         d_vertical_projection = np.diff(vertical_projection)
-
-        # Compute the variance of the first derivative
         variance_normalized_f = np.append(variance_normalized_f, np.var(d_vertical_projection))
 
     # Normalize the variance/sign_changes to the range [0, 1]
@@ -137,41 +140,18 @@ def serialSearch(input_image, angle_degrees):
     calculated_angle = range_degrees[index]
     print("serial angle", calculated_angle)
 
-    # final_angle = np.int32((calculated_angle + angle_degrees)/2)
     final_angle = np.int32((calculated_angle*0.5 + angle_degrees*0.1)/0.6)
     print("final angle", final_angle)
 
     return final_angle
 
-def fastRotateImage(input_image, input_angle):
-    height, width = input_image.shape[:2]
-    image_center = (width // 2, height // 2)
-
-    rotation_matrix = cv2.getRotationMatrix2D(image_center, input_angle, 1.)
-
-    # Calculate new image dimensions
-    cos_theta = abs(rotation_matrix[0, 0])
-    sin_theta = abs(rotation_matrix[0, 1])
-    new_width = int((height * sin_theta) + (width * cos_theta))
-    new_height = int((height * cos_theta) + (width * sin_theta))
-
-    # Adjust the rotation matrix to take into account translation
-    rotation_matrix[0, 2] += (new_width / 2) - image_center[0]
-    rotation_matrix[1, 2] += (new_height / 2) - image_center[1]
-
-    # Perform the actual rotation and pad the unused area with black
-    result = cv2.warpAffine(input_image, rotation_matrix, (new_width, new_height))
-
-    return result
-
 def rotateImage(input_image, rotation_angle):
     """
     Rotate the image by the given angle
     :param input_image: the given image
-    :param rotation_angle: the angle of rotation calculated by serialSearch
+    :param rotation_angle: the angle of rotation in degrees
     :return: the rotated image
     """
-
     rows, cols = input_image.shape[:2]
     M = cv2.getRotationMatrix2D((cols // 2, rows // 2), rotation_angle, 1)
 
@@ -188,35 +168,6 @@ def rotateImage(input_image, rotation_angle):
 
     return rotated_img
 
-def preprocessText(input_image):
-    """
-    Preprocess the image to make it easier to find the text
-    :param input_image: the given image
-    :return: the preprocessed image
-    """
-    grayscale = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
-
-    # binarize the image
-    binary_image = cv2.threshold(grayscale, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-
-    # define the kernel and invert the image
-    kernel = np.ones((3, 3), np.uint8)
-    inverted_image = cv2.bitwise_not(binary_image)
-
-    # dilate the image
-    dilated_image = cv2.dilate(inverted_image, kernel, iterations=1)
-    # display(dilated_image)
-
-    # Remove the dilated image from the original image
-    result_image = cv2.subtract(grayscale, dilated_image)
-    # display(result_image)
-
-    kernel = np.ones((5, 5), np.uint8)
-    erosion = cv2.erode(result_image, kernel, iterations=1)
-    # display(erosion)
-
-    return result_image
-
 
 if __name__ == "__main__":
     image = cv2.imread("image222.png")
@@ -228,6 +179,4 @@ if __name__ == "__main__":
 
     rotated_image = rotateImage(image, serial_angle)
     cv2.imwrite("rotated_image.jpg", rotated_image)
-
-    processed_image = preprocessText(rotated_image)
 
