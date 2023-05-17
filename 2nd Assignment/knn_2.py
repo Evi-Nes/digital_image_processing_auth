@@ -148,18 +148,17 @@ def detectWords(input_coordinates, input_image, display_img):
 
     return coords
 
-def detectLettersDft(input_coordinates, input_image, display_img):
+def detectLettersDft(input_coordinates, display_img):
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
     coords = []
 
     for i in range(len(input_coordinates)):
-        x, y, w, h = 15, input_coordinates[i] - 35, input_image.shape[1]-20, 70
+        # Calculate the coordinates of each line
+        x, y, w, h = 15, input_coordinates[i] - 35, display_img.shape[1]-20, 70
         line = display_img[y:y + h, x:x + w]
 
-        # Compute the horizontal projection of brightness
+        # Compute and smooth the horizontal projection of brightness
         horizontal_projection = cv2.reduce(line, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
-
-        # Smooth the horizontal projection with a Gaussian filter
         horizontal_projection = cv2.GaussianBlur(horizontal_projection, (3, 3), 0)
         col_sum = np.sum(horizontal_projection, axis=0)
 
@@ -167,22 +166,19 @@ def detectLettersDft(input_coordinates, input_image, display_img):
         peaks, _ = find_peaks(col_sum, height=200, distance=30)
         coordinates = []
 
-        # Draw the detected lines on the original image
+        # Unpack the coordinates of each letter
         for j, peak in enumerate(peaks):
             coordinates.append(peak)
 
             if j == 0:
-                word = line[0:line.shape[0], 15:peak]
+                letter = line[0:line.shape[0], 15:peak]
             elif j == len(peaks)-1:
                 continue
             else:
-                word = line[0:line.shape[0], coordinates[j-1]:peak]
-            # cv2.imshow('Detected Lines', word)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-                # Save the line image to a file (x,y)
-                # cv2.line(line, (peak, 0), (peak, line.shape[0]), (0, 0, 255), thickness=2)
-            cv2.imwrite(f"letters/line{i+1}_word{j + 1}.png", word)
+                letter = line[0:line.shape[0], coordinates[j-1]:peak]
+
+            # Save each letter to a file
+            cv2.imwrite(f"letters/line{i+1}_word{j + 1}.png", letter)
 
         coords.append(coordinates)
 
@@ -196,5 +192,6 @@ if __name__ == "__main__":
 
     lines_coordinates = detectLines(thresh, display_image)
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
+    letter_coordinates = detectLettersDft(lines_coordinates, display_image)
     proccessed_image = preprocessText(display_image)
-    letter_coordinates = detectLettersDft(lines_coordinates, proccessed_image, display_image)
+
