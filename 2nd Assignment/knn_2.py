@@ -165,22 +165,26 @@ def detectLettersDft(input_coordinates, display_img):
         # Find the peaks in the horizontal projection
         peaks, _ = find_peaks(col_sum, height=200, distance=30)
         coordinates = []
+        lcoordinates = []
 
         # Unpack the coordinates of each letter
         for j, peak in enumerate(peaks):
             coordinates.append(peak)
 
             if j == 0:
-                letter = line[0:line.shape[0], 15:peak]
+                # letter = line[0:line.shape[0], 15:peak]
+                lcoords = (x, y, x + peak, y + h)
             elif j == len(peaks)-1:
                 continue
             else:
-                letter = line[0:line.shape[0], coordinates[j-1]:peak]
+                # letter = line[0:line.shape[0], coordinates[j-1]:peak]
+                lcoords = (x + coordinates[j-1], y, x + peak, y + h)
 
             # Save each letter to a file
-            cv2.imwrite(f"letters/line{i+1}_word{j + 1}.png", letter)
+            # cv2.imwrite(f"letters/line{i+1}_word{j + 1}.png", letter)
 
-        coords.append(coordinates)
+            lcoordinates.append(lcoords)
+        coords.append(lcoordinates)
 
     return coords
 
