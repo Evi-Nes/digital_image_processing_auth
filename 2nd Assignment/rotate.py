@@ -61,14 +61,14 @@ def findRotationAngle(input_image, disp_image):
     # Calculate the magnitude spectrum of the DFT
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
     mret, mthresh = cv2.threshold(magnitude_spectrum, 235, 255, cv2.THRESH_BINARY)
-
+    # display(mthresh, "magnitude spectrum")
     src = mthresh
     src = np.array(src, dtype=np.int16)
     dst = np.zeros((height, width), dtype=np.int16)
 
     # Apply Canny edge detection and HoughLines function
     edges = cv2.Canny(src, dst, 200, 235, 3, False)
-    display(edges, "edges")
+    # display(edges, "edges")
 
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 5, np.array([]), minLineLength=20, maxLineGap=2)
     lines = lines.squeeze()
@@ -170,7 +170,7 @@ def rotateImage(input_image, rotation_angle):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("image222.png")
+    image = cv2.imread("image2.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
 

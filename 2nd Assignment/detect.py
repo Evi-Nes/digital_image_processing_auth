@@ -148,7 +148,7 @@ def detectWords(input_coordinates, input_image, display_img):
 
     return coords
 
-def detectLettersDft(input_coordinates, display_img):
+def detectLetters(input_coordinates, display_img):
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
     coords = []
 
@@ -196,6 +196,6 @@ if __name__ == "__main__":
 
     lines_coordinates = detectLines(thresh, display_image)
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
-    letter_coordinates = detectLettersDft(lines_coordinates, display_image)
+    letter_coordinates = detectLetters(lines_coordinates, display_image)
     proccessed_image = preprocessText(display_image)
 
