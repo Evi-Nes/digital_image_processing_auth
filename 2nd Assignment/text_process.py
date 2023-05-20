@@ -138,46 +138,46 @@ if __name__ == "__main__":
     results_test = np.empty((0, len(result)), dtype=int)
     letters = [1, 2, 3, 4]
 
-    # if has_inner:
-    #     for i in letters[1::2]:
-    #         filename = str(i) + ".png"
-    #         image_test = cv2.imread(filename)
-    #         rotated_image_test = np.copy(image_test)
-    #
-    #         processed_image_test = preprocessText(rotated_image_test)
-    #         contour_cells_test, inner = getContour(rotated_image_test, processed_image_test)
-    #         result_test = getDFT(contour_cells_test, inner)
-    #         if i != 2:
-    #             results_test = np.vstack((results_test, result_test))
-    #         else:
-    #             results_test = result_test
-    #         # results_test[i] = result_test
-    #
-    #     final = compareDFT(result, results_test)
-    #     print(final)
-    #
-    # else:
-    #     for i in letters[::2]:
-    #         filename = str(i) + ".png"
-    #         image_test = cv2.imread(filename)
-    #         rotated_image_test = np.copy(image_test)
-    #
-    #         processed_image_test = preprocessText(rotated_image_test)
-    #         contour_cells_test, inner = getContour(rotated_image_test, processed_image_test)
-    #         result_test = getDFT(contour_cells_test, inner)
-    #         # results_test[i] = result_test
-    #         if i != 1:
-    #             zeros = np.zeros_like(result)
-    #
-    #             # copy the values of 'arr' into 'zeros'
-    #             zeros[:len(result_test)] = result_test
-    #
-    #             results_test = np.vstack((results_test, zeros))
-    #         else:
-    #             zeros = np.zeros_like(result)
-    #
-    #             # copy the values of 'arr' into 'zeros'
-    #             zeros[:len(result_test)] = result_test
-    #             results_test = zeros
-    #
-    #     final = compareDFT(result, results_test, has_inner)
+    if has_inner:
+        for i in letters[1::2]:
+            filename = str(i) + ".png"
+            image_test = cv2.imread(filename)
+            rotated_image_test = np.copy(image_test)
+
+            processed_image_test = preprocessText(rotated_image_test)
+            contour_cells_test, inner = getContour(rotated_image_test, processed_image_test)
+            result_test = getDFT(contour_cells_test, inner)
+            if i != 2:
+                results_test = np.vstack((results_test, result_test))
+            else:
+                results_test = result_test
+            # results_test[i] = result_test
+
+        final = compareDFT(result, results_test)
+        print(final)
+
+    else:
+        for i in letters[::2]:
+            filename = str(i) + ".png"
+            image_test = cv2.imread(filename)
+            rotated_image_test = np.copy(image_test)
+
+            processed_image_test = preprocessText(rotated_image_test)
+            contour_cells_test, inner = getContour(rotated_image_test, processed_image_test)
+            result_test = getDFT(contour_cells_test, inner)
+            # results_test[i] = result_test
+            if i != 1:
+                zeros = np.zeros_like(result)
+
+                # copy the values of 'arr' into 'zeros'
+                zeros[:len(result_test)] = result_test
+
+                results_test = np.vstack((results_test, zeros))
+            else:
+                zeros = np.zeros_like(result)
+
+                # copy the values of 'arr' into 'zeros'
+                zeros[:len(result_test)] = result_test
+                results_test = zeros
+
+        final = compareDFT(result, results_test, has_inner)
