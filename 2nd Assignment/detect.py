@@ -158,11 +158,11 @@ def detectLetters(input_coordinates, input_image, display_img):
 
         # Compute and smooth the horizontal projection of brightness
         horizontal_projection = cv2.reduce(cropped_image, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
-        # horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
+        horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=12000, distance=25, width=5)
+        peaks, _ = find_peaks(col_sum, height=12000, distance=26, width=6)
         coordinates = []
         lcoordinates = []
 
@@ -194,8 +194,8 @@ def returnCharacters(filepath):
                 if char == ' ' or char == '\n':
                     continue
                 chars.append(char)
-
-    return chars
+    print(len(chars))
+    # return chars
 
 
 if __name__ == "__main__":
