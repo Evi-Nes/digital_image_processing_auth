@@ -3,8 +3,6 @@ import numpy as np
 from scipy.signal import find_peaks
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import accuracy_score
 
 debug = True
 
@@ -163,14 +161,13 @@ def detectLetters(input_coordinates, input_image, display_img):
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=13000, distance=26, width=6)
+        peaks, _ = find_peaks(col_sum, height=13000, distance=24, width=7)
         coordinates = []
         lcoordinates = []
 
         # Unpack the coordinates of each letter
         for j, peak in enumerate(peaks):
             coordinates.append(peak)
-
             if j == 0:
                 continue
             else:
@@ -178,22 +175,23 @@ def detectLetters(input_coordinates, input_image, display_img):
                 lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y2)
 
             # Save each letter to a file
-            # cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
+            cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
 
             lcoordinates.append(lcoords)
 
         coords.append(lcoordinates)
 
-        count = 0
-        for sublist in coords:
-            count += len(sublist)
+    count = 0
+    for sublist in coords:
+        count += len(sublist)
+    print(count)
 
-        if count > 2640:
-            # Remove the last 5 elements from the last inner list
-            last_inner_list = coords[-1]
-            new_inner_list = last_inner_list[:-5]
+    if count > 2640:
+        # Remove the last 5 elements from the last inner list
+        last_inner_list = coords[-1]
+        new_inner_list = last_inner_list[:-5]
 
-            coords = coords[:-1] + [new_inner_list]
+        coords = coords[:-1] + [new_inner_list]
 
     return coords
 
