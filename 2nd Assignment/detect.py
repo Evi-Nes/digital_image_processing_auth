@@ -1,10 +1,6 @@
 import cv2
 import numpy as np
 from scipy.signal import find_peaks
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import accuracy_score
 
 debug = True
 
@@ -145,6 +141,7 @@ def detectWords(input_coordinates, input_image, display_img):
 
 def detectLetters(input_coordinates, input_image, display_img):
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
+
     coords = []
 
     for i in range(len(input_coordinates)):
@@ -162,7 +159,7 @@ def detectLetters(input_coordinates, input_image, display_img):
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=12000, distance=26, width=6)
+        peaks, _ = find_peaks(col_sum, height=13000, distance=26, width=6)
         coordinates = []
         lcoordinates = []
 
@@ -174,28 +171,27 @@ def detectLetters(input_coordinates, input_image, display_img):
                 continue
             else:
                 letter = cropped_image[0:cropped_image.shape[0], coordinates[j-1]:peak]
-                lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y1)
+                lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y2)
 
             # Save each letter to a file
-            cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
+            # cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
 
             lcoordinates.append(lcoords)
 
         coords.append(lcoordinates)
 
+        count = 0
+        for sublist in coords:
+            count += len(sublist)
+
+        if count > 2640:
+            # Remove the last 5 elements from the last inner list
+            last_inner_list = coords[-1]
+            new_inner_list = last_inner_list[:-5]
+
+            coords = coords[:-1] + [new_inner_list]
+
     return coords
-
-def returnCharacters(filepath):
-    chars = []  # List to store all characters
-
-    with open(filepath, 'r') as file:
-        for line in file:
-            for char in line:
-                if char == ' ' or char == '\n':
-                    continue
-                chars.append(char)
-    print(len(chars))
-    # return chars
 
 
 if __name__ == "__main__":
@@ -206,62 +202,3 @@ if __name__ == "__main__":
     lines_coordinates = detectLines(connected, display_image)
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
     letter_coordinates = detectLetters(lines_coordinates, thresh, display_image)
-
-    # proccessed_image = preprocessText(display_image)
-    # file_path = 'text1_v2.txt'  # Replace with the actual path to your text file
-    # characters = returnCharacters(file_path)
-    #
-    # y = characters
-    # X = []
-    #
-    # for line in letter_coordinates:
-    #     for letter in line:
-    #         x1, y1, x2, y2 = letter
-    #         X.append(proccessed_image[y1:y2, x1:x2])
-    #         # breakpoint()
-    #
-    # for i in range(len(X)):
-    #     X[i] = cv2.resize(X[i], (70, 70))
-    # # max_length = max(len(sublist) for sublist in X)
-    # # X = [sublist + [0] * (max_length - len(sublist)) for sublist in X]
-    #
-    # # Convert to numpy arrays
-    # X = np.array(X)
-    # y = np.array(y)
-    #
-    # # Step 3: Split the dataset
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    #
-    # # Step 4: Normalize the features
-    # scaler = MinMaxScaler()
-    # X_train = scaler.fit_transform(X_train)
-    # X_test = scaler.transform(X_test)
-    #
-    # # Step 5: Train the KNN model
-    # k = 3  # Number of neighbors
-    # knn = KNeighborsClassifier(n_neighbors=k)
-    # knn.fit(X_train, y_train)
-    #
-    # # Step 6: Make predictions
-    # y_pred = knn.predict(X_test)
-    #
-    # # Step 7: Evaluate the model
-    # accuracy = accuracy_score(y_test, y_pred)
-    # print(f"Accuracy: {accuracy}")
-    #
-    # # Step 10: Predict on new, unseen data
-    # new_image_paths = ['dataset/g.png', 'dataset/b.png']
-    # new_data = []
-    #
-    # for path in new_image_paths:
-    #     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-    #     _, threshold = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
-    #     contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    #     contour_count = len(contours)
-    #
-    #     new_data.append(contour_count)
-    #
-    # new_data = np.array(new_data).reshape(-1, 1)
-    # new_data = scaler.transform(new_data)
-    # predicted_classes = knn.predict(new_data)
-    # print(f"Predicted classes for new data: {predicted_classes}")
