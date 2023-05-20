@@ -143,7 +143,6 @@ def detectWords(input_coordinates, input_image, display_img):
 
 def detectLetters(input_coordinates, input_image, display_img):
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
-
     coords = []
 
     for i in range(len(input_coordinates)):
@@ -157,11 +156,11 @@ def detectLetters(input_coordinates, input_image, display_img):
 
         # Compute and smooth the horizontal projection of brightness
         horizontal_projection = cv2.reduce(cropped_image, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
-        horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
+        # horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=13000, distance=24, width=7)
+        peaks, _ = find_peaks(col_sum, height=12500, distance=26, width=6)
         coordinates = []
         lcoordinates = []
 
@@ -175,7 +174,7 @@ def detectLetters(input_coordinates, input_image, display_img):
                 lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y2)
 
             # Save each letter to a file
-            cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
+            # cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
 
             lcoordinates.append(lcoords)
 
@@ -184,12 +183,11 @@ def detectLetters(input_coordinates, input_image, display_img):
     count = 0
     for sublist in coords:
         count += len(sublist)
-    print(count)
 
     if count > 2640:
         # Remove the last 5 elements from the last inner list
         last_inner_list = coords[-1]
-        new_inner_list = last_inner_list[:-5]
+        new_inner_list = last_inner_list[:-6]
 
         coords = coords[:-1] + [new_inner_list]
 
@@ -232,10 +230,6 @@ if __name__ == "__main__":
             _, binarizedImage = cv2.threshold(resized, 240, 255, cv2.THRESH_BINARY)
             binarizedImage = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
             X.append(binarizedImage.flatten())
-
-    # Convert to numpy arrays
-    # X = np.array(X)
-    # y = np.array(y)
 
     # Step 3: Split the dataset
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
