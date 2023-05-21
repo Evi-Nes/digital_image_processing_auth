@@ -151,47 +151,53 @@ def detectLetters(input_coordinates, input_image, display_img):
         line = input_image[y1:y2, x1:x2]
         white_rows = np.all(line >= 245, axis=1)
         cropped_image = line[~white_rows, :]
-        cropped_image = cv2.threshold(cropped_image, 230, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-        # Compute and smooth the horizontal projection of brightness
-        horizontal_projection = cv2.reduce(cropped_image, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
-        # horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
-        col_sum = np.sum(horizontal_projection, axis=0)
+        # Convert the image to binary format and find the white columns
+        binary_image = np.where(cropped_image >= 240, 1, 0)
+        white_columns = np.all(binary_image == 1, axis=0)
 
-        # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=13100, distance=17, width=6)
-        coordinates = []
+        # Identify the letter boundaries
+        boundaries = []
+        start_index = None
+        for k, is_white in enumerate(white_columns):
+            if is_white and start_index is None:
+                start_index = k
+            elif not is_white and start_index is not None:
+                end_index = k - 1
+                if len(boundaries) == 0 or start_index > boundaries[-1][1] + 1:
+                    boundaries.append((start_index, end_index))
+                else:
+                    boundaries[-1] = (boundaries[-1][0], end_index)
+                start_index = None
+
+        # Extract the letters
+        letters = []
         lcoordinates = []
+        for start, end in boundaries:
+            if start == 0:
+                temp_end = end
+                continue
 
-        # Unpack the coordinates of each letter
-        for j, peak in enumerate(peaks):
-            coordinates.append(peak)
-            if j == 0:
-                letter = cropped_image[0:cropped_image.shape[0], 5:peak]
-                lcoords = (x1, y1, x1 + peak, y2)
-            else:
-                letter = cropped_image[0:cropped_image.shape[0], coordinates[j-1]:peak]
-                lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y2)
-
-            # Save each letter to a file
-            # cv2.imwrite(f"letters/line{i}_letter{j+1}.png", letter)
-
+            letter = cropped_image[0:cropped_image.shape[0], temp_end:start]
+            lcoords = (temp_end, 0, start, cropped_image.shape[0])
             lcoordinates.append(lcoords)
+            letters.append(letter)
+
+            if start == boundaries[-1][0]:
+                letter = cropped_image[0:cropped_image.shape[0], start:start + 40]
+                lcoords = (start, 0, start+40, cropped_image.shape[0])
+                lcoordinates.append(lcoords)
+                letters.append(letter)
+
+            temp_end = end
+
+        # Display the extracted letters
+        # for j, letter in enumerate(letters):
+            # cv2.imwrite(f"letters/line{i}_letter{j + 1}.png", letter)
 
         coords.append(lcoordinates)
 
-    count = 0
-    for sublist in coords:
-        count += len(sublist)
-
-    if count > 2640:
-        # Remove the last 5 elements from the last inner list
-        last_inner_list = coords[-1]
-        new_inner_list = last_inner_list[:-6]
-
-        coords = coords[:-1] + [new_inner_list]
-
-    return coords
+    return coords, cropped_image
 
 def returnCharacters(filepath):
     chars = []
@@ -215,40 +221,38 @@ if __name__ == "__main__":
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
     proccessed_image = preprocessText(display_image)
     pro_invert = cv2.bitwise_not(proccessed_image)
-    letter_coordinates = detectLetters(lines_coordinates, pro_invert, display_image)
+    letter_coordinates, cropped = detectLetters(lines_coordinates, pro_invert, display_image)
 
-    # file_path = 'text1_v2.txt'
-    # characters = returnCharacters(file_path)
-    #
-    # y = characters
-    # X = []
-    #
-    # for line in letter_coordinates:
-    #     for letter in line:
-    #         x1, y1, x2, y2 = letter
-    #         temp = display_image[y1:y2, x1:x2]
-    #         resized = cv2.resize(temp, (32, 32), interpolation=cv2.INTER_CUBIC)
-    #         _, binarizedImage = cv2.threshold(resized, 240, 255, cv2.THRESH_BINARY)
-    #         binarizedImage = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-    #         X.append(binarizedImage.flatten())
-    #
-    # # Step 3: Split the dataset
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    #
-    # # Step 5: Train the KNN model
-    # k = 3  # Number of neighbors
-    # knn = KNeighborsClassifier(n_neighbors=k)
-    # knn.fit(X_train, y_train)
-    #
-    # # Step 6: Make predictions
-    # y_pred = knn.predict(X_test)
-    #
-    # # Evaluate the accuracy of the classifier
-    # accuracy = knn.score(X_test, y_test)
-    # print(f"Accuracy: {accuracy}")
-    # test_letter = cv2.imread('dataset/e.png')
-    # test_letter = cv2.resize(test_letter, (32, 32), interpolation=cv2.INTER_CUBIC)
-    # _, test_letter = cv2.threshold(test_letter, 240, 255, cv2.THRESH_BINARY)
-    # test_letter = cv2.cvtColor(test_letter, cv2.COLOR_BGR2GRAY)
-    # prediction = knn.predict(test_letter.reshape(-1, 1024))
-    # print(f"Prediction: {prediction}")
+    file_path = 'text1_v2.txt'
+    characters = returnCharacters(file_path)
+
+    y = characters
+    X = []
+
+    for line in letter_coordinates:
+        for letter in line:
+            x1, y1, x2, y2 = letter
+            temp = cropped[y1:y2, x1:x2]
+            resized = cv2.resize(temp, (32, 32), interpolation=cv2.INTER_CUBIC)
+            X.append(resized.flatten())
+
+    # Step 3: Split the dataset
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # Step 5: Train the KNN model
+    k = 3  # Number of neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    knn.fit(X_train, y_train)
+
+    # Step 6: Make predictions
+    y_pred = knn.predict(X_test)
+
+    # Evaluate the accuracy of the classifier
+    accuracy = knn.score(X_test, y_test)
+    print(f"Accuracy: {accuracy}")
+    test_letter = cv2.imread('dataset/e.png')
+    test_letter = cv2.resize(test_letter, (32, 32), interpolation=cv2.INTER_CUBIC)
+    _, test_letter = cv2.threshold(test_letter, 240, 255, cv2.THRESH_BINARY)
+    test_letter = cv2.cvtColor(test_letter, cv2.COLOR_BGR2GRAY)
+    prediction = knn.predict(test_letter.reshape(-1, 1024))
+    print(f"Prediction: {prediction}")
