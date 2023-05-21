@@ -44,7 +44,6 @@ def preprocessImage(input_image):
 
     return inverted_image, bw_inverted_image
 
-
 def preprocessText(input_image):
     """
     Preprocess the image to make it easier to find the text
@@ -69,7 +68,6 @@ def preprocessText(input_image):
     eroded_image = cv2.erode(inverted_image, kernel, iterations=1)
 
     final_image = np.copy(eroded_image)
-    # display(final_image, "final_image")
 
     return final_image
 
@@ -148,9 +146,9 @@ def detectLetters(input_coordinates, input_image, display_img):
             continue
         # Calculate the coordinates of each line
         x1, y1, x2, y2 = 5, input_coordinates[i-1], display_img.shape[1]-5, input_coordinates[i]
-        line = input_image[y1:y2, x1:x2]
-        white_rows = np.all(line >= 245, axis=1)
-        cropped_image = line[~white_rows, :]
+        cropped_image = input_image[y1:y2, x1:x2]
+        # white_rows = np.all(line >= 245, axis=1)
+        # cropped_image = line[~white_rows, :]
 
         # Convert the image to binary format and find the white columns
         binary_image = np.where(cropped_image >= 240, 1, 0)
@@ -196,7 +194,7 @@ def detectLetters(input_coordinates, input_image, display_img):
 
         coords.append(lcoordinates)
 
-    return coords, cropped_image
+    return coords
 
 def returnCharacters(filepath):
     chars = []
@@ -218,20 +216,20 @@ if __name__ == "__main__":
 
     lines_coordinates = detectLines(connected, display_image)
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
+
     proccessed_image = preprocessText(display_image)
     pro_invert = cv2.bitwise_not(proccessed_image)
-    letter_coordinates, cropped = detectLetters(lines_coordinates, pro_invert, display_image)
+    letter_coordinates = detectLetters(lines_coordinates, pro_invert, display_image)
 
     file_path = 'text1_v2.txt'
     characters = returnCharacters(file_path)
-
     y = characters
     X = []
 
     for line in letter_coordinates:
         for letter in line:
             x1, y1, x2, y2 = letter
-            temp = cropped[y1:y2, x1:x2]
+            temp = pro_invert[y1:y2, x1:x2]
             resized = cv2.resize(temp, (32, 32), interpolation=cv2.INTER_CUBIC)
             X.append(resized.flatten())
 
@@ -249,9 +247,9 @@ if __name__ == "__main__":
     # Evaluate the accuracy of the classifier
     accuracy = knn.score(X_test, y_test)
     print(f"Accuracy: {accuracy}")
-    test_letter = cv2.imread('dataset/3.png')
-    test_letter = cv2.resize(test_letter, (32, 32), interpolation=cv2.INTER_CUBIC)
-    _, test_letter = cv2.threshold(test_letter, 240, 255, cv2.THRESH_BINARY)
-    test_letter = cv2.cvtColor(test_letter, cv2.COLOR_BGR2GRAY)
+    test_letter = cv2.imread('dataset/f.png')
+    proccessed_image = preprocessText(test_letter)
+    pro_invert = cv2.bitwise_not(proccessed_image)
+    test_letter = cv2.resize(pro_invert, (32, 32), interpolation=cv2.INTER_CUBIC)
     prediction = knn.predict(test_letter.reshape(-1, 1024))
     print(f"Prediction: {prediction}")
