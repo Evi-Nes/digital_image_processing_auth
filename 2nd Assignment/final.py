@@ -30,20 +30,18 @@ def preprocessImage(input_image):
     # find the gradient map
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     grad = cv2.morphologyEx(grayscale, cv2.MORPH_GRADIENT, kernel)
-    # display(grad)
 
     # Binarize the gradient image
     _, bw_image = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    # display(bw_image)
     bw_inverted_image = cv2.bitwise_not(bw_image)
 
     # connect horizontally oriented regions
     # kernel value (9,1) can be changed to improve the text detection
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
     connected_image = cv2.morphologyEx(bw_image, cv2.MORPH_CLOSE, kernel)
-    # display(connected_image)
+
     inverted_image = cv2.bitwise_not(connected_image)
-    # display(inverted_image)
+
     return inverted_image, bw_inverted_image
 
 
@@ -150,17 +148,17 @@ def detectLetters(input_coordinates, input_image, display_img):
             continue
         # Calculate the coordinates of each line
         x1, y1, x2, y2 = 5, input_coordinates[i-1], display_img.shape[1]-5, input_coordinates[i]
-        line = display_img[y1:y2, x1:x2]
-        white_rows = np.all(line >= 245, axis=1)
-        cropped_image = line[~white_rows, :]
+        line = input_image[y1:y2, x1:x2]
+        # white_rows = np.all(line >= 245, axis=1)
+        # cropped_image = line[~white_rows, :]
 
         # Compute and smooth the horizontal projection of brightness
-        horizontal_projection = cv2.reduce(cropped_image, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
-        # horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
+        horizontal_projection = cv2.reduce(line, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
+        horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=12500, distance=26, width=6)
+        peaks, _ = find_peaks(col_sum, height=13500, distance=30, width=6)
         coordinates = []
         lcoordinates = []
 
@@ -168,9 +166,10 @@ def detectLetters(input_coordinates, input_image, display_img):
         for j, peak in enumerate(peaks):
             coordinates.append(peak)
             if j == 0:
-                continue
+                letter = line[0:line.shape[0], 5:peak]
+                lcoords = (x1, y1, x1 + peak, y2)
             else:
-                letter = cropped_image[0:cropped_image.shape[0], coordinates[j-1]:peak]
+                letter = line[0:line.shape[0], coordinates[j-1]:peak]
                 lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y2)
 
             # Save each letter to a file
@@ -213,41 +212,42 @@ if __name__ == "__main__":
 
     lines_coordinates = detectLines(connected, display_image)
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
-    letter_coordinates = detectLetters(lines_coordinates, thresh, display_image)
+    proccessed_image = preprocessText(display_image)
+    pro_invert = cv2.bitwise_not(proccessed_image)
+    letter_coordinates = detectLetters(lines_coordinates, pro_invert, display_image)
 
-    # proccessed_image = preprocessText(display_image)
-    file_path = 'text1_v2.txt'
-    characters = returnCharacters(file_path)
-
-    y = characters
-    X = []
-
-    for line in letter_coordinates:
-        for letter in line:
-            x1, y1, x2, y2 = letter
-            temp = display_image[y1:y2, x1:x2]
-            resized = cv2.resize(temp, (32, 32), interpolation=cv2.INTER_CUBIC)
-            _, binarizedImage = cv2.threshold(resized, 240, 255, cv2.THRESH_BINARY)
-            binarizedImage = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-            X.append(binarizedImage.flatten())
-
-    # Step 3: Split the dataset
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-    # Step 5: Train the KNN model
-    k = 3  # Number of neighbors
-    knn = KNeighborsClassifier(n_neighbors=k)
-    knn.fit(X_train, y_train)
-
-    # Step 6: Make predictions
-    y_pred = knn.predict(X_test)
-
-    # Evaluate the accuracy of the classifier
-    accuracy = knn.score(X_test, y_test)
-    print(f"Accuracy: {accuracy}")
-    test_letter = cv2.imread('dataset/e.png')
-    test_letter = cv2.resize(test_letter, (32, 32), interpolation=cv2.INTER_CUBIC)
-    _, test_letter = cv2.threshold(test_letter, 240, 255, cv2.THRESH_BINARY)
-    test_letter = cv2.cvtColor(test_letter, cv2.COLOR_BGR2GRAY)
-    prediction = knn.predict(test_letter.reshape(-1, 1024))
-    print(f"Prediction: {prediction}")
+    # file_path = 'text1_v2.txt'
+    # characters = returnCharacters(file_path)
+    #
+    # y = characters
+    # X = []
+    #
+    # for line in letter_coordinates:
+    #     for letter in line:
+    #         x1, y1, x2, y2 = letter
+    #         temp = display_image[y1:y2, x1:x2]
+    #         resized = cv2.resize(temp, (32, 32), interpolation=cv2.INTER_CUBIC)
+    #         _, binarizedImage = cv2.threshold(resized, 240, 255, cv2.THRESH_BINARY)
+    #         binarizedImage = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+    #         X.append(binarizedImage.flatten())
+    #
+    # # Step 3: Split the dataset
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    #
+    # # Step 5: Train the KNN model
+    # k = 3  # Number of neighbors
+    # knn = KNeighborsClassifier(n_neighbors=k)
+    # knn.fit(X_train, y_train)
+    #
+    # # Step 6: Make predictions
+    # y_pred = knn.predict(X_test)
+    #
+    # # Evaluate the accuracy of the classifier
+    # accuracy = knn.score(X_test, y_test)
+    # print(f"Accuracy: {accuracy}")
+    # test_letter = cv2.imread('dataset/e.png')
+    # test_letter = cv2.resize(test_letter, (32, 32), interpolation=cv2.INTER_CUBIC)
+    # _, test_letter = cv2.threshold(test_letter, 240, 255, cv2.THRESH_BINARY)
+    # test_letter = cv2.cvtColor(test_letter, cv2.COLOR_BGR2GRAY)
+    # prediction = knn.predict(test_letter.reshape(-1, 1024))
+    # print(f"Prediction: {prediction}")

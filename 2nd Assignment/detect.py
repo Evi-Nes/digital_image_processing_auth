@@ -28,20 +28,16 @@ def preprocessImage(input_image):
     # find the gradient map
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     grad = cv2.morphologyEx(grayscale, cv2.MORPH_GRADIENT, kernel)
-    # display(grad)
 
     # Binarize the gradient image
     _, bw_image = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    # display(bw_image)
     bw_inverted_image = cv2.bitwise_not(bw_image)
 
     # connect horizontally oriented regions
-    # kernel value (9,1) can be changed to improve the text detection
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
     connected_image = cv2.morphologyEx(bw_image, cv2.MORPH_CLOSE, kernel)
-    # display(connected_image)
     inverted_image = cv2.bitwise_not(connected_image)
-    # display(inverted_image)
+
     return inverted_image, bw_inverted_image
 
 
@@ -93,6 +89,7 @@ def detectLines(input_image, display_img):
             continue
         else:
             line = display_img[coordinates[i-1]:peak, 5:display_img.shape[1]-5]
+
             # Find the rows that contain only white pixels and remove them from the image
             white_rows = np.all(line >= 245, axis=1)
             cropped_image = line[~white_rows, :]
@@ -141,7 +138,6 @@ def detectWords(input_coordinates, input_image, display_img):
 
 def detectLetters(input_coordinates, input_image, display_img):
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
-
     coords = []
 
     for i in range(len(input_coordinates)):
