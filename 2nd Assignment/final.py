@@ -149,16 +149,17 @@ def detectLetters(input_coordinates, input_image, display_img):
         # Calculate the coordinates of each line
         x1, y1, x2, y2 = 5, input_coordinates[i-1], display_img.shape[1]-5, input_coordinates[i]
         line = input_image[y1:y2, x1:x2]
-        # white_rows = np.all(line >= 245, axis=1)
-        # cropped_image = line[~white_rows, :]
+        white_rows = np.all(line >= 245, axis=1)
+        cropped_image = line[~white_rows, :]
+        cropped_image = cv2.threshold(cropped_image, 230, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
         # Compute and smooth the horizontal projection of brightness
-        horizontal_projection = cv2.reduce(line, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
-        horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
+        horizontal_projection = cv2.reduce(cropped_image, 0, cv2.REDUCE_SUM, dtype=cv2.CV_32F)
+        # horizontal_projection = cv2.GaussianBlur(horizontal_projection, (1, 1), 0)
         col_sum = np.sum(horizontal_projection, axis=0)
 
         # Find the peaks in the horizontal projection
-        peaks, _ = find_peaks(col_sum, height=13500, distance=30, width=6)
+        peaks, _ = find_peaks(col_sum, height=13100, distance=17, width=6)
         coordinates = []
         lcoordinates = []
 
@@ -166,14 +167,14 @@ def detectLetters(input_coordinates, input_image, display_img):
         for j, peak in enumerate(peaks):
             coordinates.append(peak)
             if j == 0:
-                letter = line[0:line.shape[0], 5:peak]
+                letter = cropped_image[0:cropped_image.shape[0], 5:peak]
                 lcoords = (x1, y1, x1 + peak, y2)
             else:
-                letter = line[0:line.shape[0], coordinates[j-1]:peak]
+                letter = cropped_image[0:cropped_image.shape[0], coordinates[j-1]:peak]
                 lcoords = (x1 + coordinates[j-1], y1, x1 + peak, y2)
 
             # Save each letter to a file
-            # cv2.imwrite(f"letters/line{i}_letter{j}.png", letter)
+            # cv2.imwrite(f"letters/line{i}_letter{j+1}.png", letter)
 
             lcoordinates.append(lcoords)
 
