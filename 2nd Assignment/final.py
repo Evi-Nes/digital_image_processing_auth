@@ -191,7 +191,6 @@ def detectLetters(input_coordinates, input_image, display_img):
 
             temp_end = end
 
-        # Display the extracted letters
         # for j, letter in enumerate(letters):
             # cv2.imwrite(f"letters/line{i}_letter{j + 1}.png", letter)
 
@@ -240,7 +239,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
     # Step 5: Train the KNN model
-    k = 3  # Number of neighbors
+    k = 3
     knn = KNeighborsClassifier(n_neighbors=k)
     knn.fit(X_train, y_train)
 
@@ -250,7 +249,7 @@ if __name__ == "__main__":
     # Evaluate the accuracy of the classifier
     accuracy = knn.score(X_test, y_test)
     print(f"Accuracy: {accuracy}")
-    test_letter = cv2.imread('dataset/e.png')
+    test_letter = cv2.imread('dataset/3.png')
     test_letter = cv2.resize(test_letter, (32, 32), interpolation=cv2.INTER_CUBIC)
     _, test_letter = cv2.threshold(test_letter, 240, 255, cv2.THRESH_BINARY)
     test_letter = cv2.cvtColor(test_letter, cv2.COLOR_BGR2GRAY)
