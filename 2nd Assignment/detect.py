@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 from scipy.signal import find_peaks
 from sklearn.neighbors import KNeighborsClassifier
@@ -72,6 +73,11 @@ def preprocessText(input_image):
     return final_image
 
 def detectLines(input_image, display_img):
+    current_directory = os.getcwd()
+    final_directory = os.path.join(current_directory, r'lines')
+    if not os.path.exists(final_directory):
+        os.makedirs(final_directory)
+
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
 
     # Compute and smooth the vertical projection of brightness
@@ -138,6 +144,11 @@ def detectWords(input_coordinates, input_image, display_img):
     return coords
 
 def detectLetters(input_coordinates, input_image, display_img):
+    current_directory = os.getcwd()
+    final_directory = os.path.join(current_directory, r'letters')
+    if not os.path.exists(final_directory):
+        os.makedirs(final_directory)
+
     display_img = cv2.cvtColor(display_img, cv2.COLOR_BGR2GRAY)
     coords = []
 
@@ -190,7 +201,7 @@ def detectLetters(input_coordinates, input_image, display_img):
             temp_end = end
 
         # for j, letter in enumerate(letters):
-            # cv2.imwrite(f"letters/line{i}_letter{j + 1}.png", letter)
+        #     cv2.imwrite(f"letters/line{i}_letter{j + 1}.png", letter)
 
         coords.append(lcoordinates)
 
@@ -198,7 +209,6 @@ def detectLetters(input_coordinates, input_image, display_img):
 
 def returnCharacters(filepath):
     chars = []
-
     with open(filepath, 'r') as file:
         for line in file:
             for char in line:
@@ -217,8 +227,8 @@ if __name__ == "__main__":
     lines_coordinates = detectLines(connected, display_image)
     # words_coordinates = detectWords(lines_coordinates, thresh, display_image)
 
-    proccessed_image = preprocessText(display_image)
-    pro_invert = cv2.bitwise_not(proccessed_image)
+    processed_image = preprocessText(display_image)
+    pro_invert = cv2.bitwise_not(processed_image)
     letter_coordinates = detectLetters(lines_coordinates, pro_invert, display_image)
 
     file_path = 'text1_v2.txt'
@@ -233,23 +243,25 @@ if __name__ == "__main__":
             resized = cv2.resize(temp, (32, 32), interpolation=cv2.INTER_CUBIC)
             X.append(resized.flatten())
 
-    # Step 3: Split the dataset
+    # Split the dataset
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    # Step 5: Train the KNN model
+    # Train the KNN model
     k = 3
     knn = KNeighborsClassifier(n_neighbors=k)
     knn.fit(X_train, y_train)
 
-    # Step 6: Make predictions
+    # Make predictions
     y_pred = knn.predict(X_test)
 
     # Evaluate the accuracy of the classifier
     accuracy = knn.score(X_test, y_test)
     print(f"Accuracy: {accuracy}")
-    test_letter = cv2.imread('dataset/f.png')
-    proccessed_image = preprocessText(test_letter)
-    pro_invert = cv2.bitwise_not(proccessed_image)
+
+    test_letter = cv2.imread('dataset/j.png')
+    processed_image = preprocessText(test_letter)
+    pro_invert = cv2.bitwise_not(processed_image)
     test_letter = cv2.resize(pro_invert, (32, 32), interpolation=cv2.INTER_CUBIC)
+
     prediction = knn.predict(test_letter.reshape(-1, 1024))
     print(f"Prediction: {prediction}")
