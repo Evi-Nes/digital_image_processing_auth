@@ -170,7 +170,7 @@ def rotateImage(input_image, rotation_angle):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("image2.png")
+    image = cv2.imread("image222.png")
     display_image = np.copy(image)
     connected, thresh = preprocessImage(image)
 
