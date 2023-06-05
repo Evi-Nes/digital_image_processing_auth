@@ -23,8 +23,7 @@ def myLocalDescriptor(I, p, rhom, rhoM, rhostep, N):
             y = int(p[1] + rho * np.sin(theta))
             x_rho.append(I[x, y])
         d = np.append(d, np.mean(x_rho))
-    # print(d)
-    # print("\n")
+
     return d
 
 def myLocalDescriptorUpgrade(I, p, rhom, rhoM, rhostep, N):
@@ -38,20 +37,25 @@ def myLocalDescriptorUpgrade(I, p, rhom, rhoM, rhostep, N):
     :param N: the number of points in the circle
     :return: descriptor
     """
-    log_size = 5  # Size of the LoG matrix
-    sigma = 1.0
-    # Generate the LoG matrix
-    gaussian = cv2.getGaussianKernel(log_size, sigma)
-    log_matrix = cv2.sepFilter2D(gaussian, -1,  np.transpose(gaussian), np.transpose(gaussian))
+    d = np.array([])
+    if p[0] + rhom > I.shape[0] or p[1] + rhom > I.shape[1] or p[0] - rhom < 0 or p[1] - rhom < 0:
+        return d
 
-    # Convolve the image with the LoG matrix
-    convolved_image = convolve(I, log_matrix)
-    cv2.imwrite("convolved_image2.jpg", convolved_image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    for rho in range(rhom, rhoM, rhostep):
+        x_rho = []
+        for theta in range(0, 360, N):
+            if theta % (2*N):
+                x = int(p[0] + rho * np.cos(theta))
+                y = int(p[1] + rho * np.sin(theta))
+                x_rho.append(I[x, y]*2)
+            else:
+                x = int(p[0] + rho * np.cos(theta))
+                y = int(p[1] + rho * np.sin(theta))
+                x_rho.append(I[x, y])
 
-    return convolved_image
+        d = np.append(d, np.mean(x_rho))
 
+    return d
 
 if __name__ == "__main__":
     image = cv2.imread("im2.png")
@@ -62,4 +66,7 @@ if __name__ == "__main__":
     # descriptor = myLocalDescriptor(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptor = myLocalDescriptor(grayscale, [202, 202], 5, 20, 1, 8)
 
-    myLocalDescriptorUpgrade(grayscale, [100, 100], 5, 20, 1, 8)
+    descriptorUp = myLocalDescriptorUpgrade(grayscale, [100, 100], 5, 20, 1, 8)
+    # descriptorUp = myLocalDescriptorUpgrade(grayscale, [200, 200], 5, 20, 1, 8)
+    # descriptorUp = myLocalDescriptorUpgrade(grayscale, [202, 202], 5, 20, 1, 8)
+
