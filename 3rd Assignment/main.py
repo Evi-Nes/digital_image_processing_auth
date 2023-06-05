@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from scipy.ndimage import convolve
 def myLocalDescriptor(I, p, rhom, rhoM, rhostep, N):
     """
     Computes the local descriptor for each pixel in the image
@@ -37,10 +38,23 @@ def myLocalDescriptorUpgrade(I, p, rhom, rhoM, rhostep, N):
     :param N: the number of points in the circle
     :return: descriptor
     """
+    log_size = 5  # Size of the LoG matrix
+    sigma = 1.0
+    # Generate the LoG matrix
+    gaussian = cv2.getGaussianKernel(log_size, sigma)
+    log_matrix = cv2.sepFilter2D(gaussian, -1,  np.transpose(gaussian), np.transpose(gaussian))
+
+    # Convolve the image with the LoG matrix
+    convolved_image = convolve(I, log_matrix)
+    cv2.imwrite("convolved_image2.jpg", convolved_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    return convolved_image
 
 
 if __name__ == "__main__":
-    image = cv2.imread("im1.png")
+    image = cv2.imread("im2.png")
     display_image = np.copy(image)
     grayscale = cv2.cvtColor(display_image, cv2.COLOR_RGB2GRAY)
 
@@ -48,4 +62,4 @@ if __name__ == "__main__":
     # descriptor = myLocalDescriptor(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptor = myLocalDescriptor(grayscale, [202, 202], 5, 20, 1, 8)
 
-    # myLocalDescriptorUpgrade(grayscale, [100, 100], 5, 20, 1, 8)
+    myLocalDescriptorUpgrade(grayscale, [100, 100], 5, 20, 1, 8)
