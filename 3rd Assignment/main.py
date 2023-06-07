@@ -58,6 +58,12 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
     return d
 
 def myDetectHarrisFeatures(img, display_img):
+    """
+    Detects all the corners in the given image using the derivatives of x-axis and y-axis.
+    :param img: the given grayscale image
+    :param display_img: the given image udes for cv2.circle
+    :return: the detected corners
+    """
     img_gaussian = cv2.GaussianBlur(img, (3, 3), 0)
     k = 0.04
     r_thresh = 0.3
@@ -101,10 +107,16 @@ def myDetectHarrisFeatures(img, display_img):
     cv2.imwrite("my_corners.jpg", display_img)
     return cornerList
 
+def descriptorMatching(p1, p2, threshold):
+
+    return match_points
+
 
 if __name__ == "__main__":
-    image = cv2.imread("im1.png")
-    grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    final = []
+    for i in range(1, 3):
+        image = cv2.imread(f"im{i}.png")
+        grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     # descriptor = myLocalDescriptor(grayscale, [100, 100], 5, 20, 1, 8)
     # descriptor = myLocalDescriptor(grayscale, [200, 200], 5, 20, 1, 8)
@@ -114,8 +126,14 @@ if __name__ == "__main__":
     # descriptorUp = myLocalDescriptorUpgrade(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptorUp = myLocalDescriptorUpgrade(grayscale, [202, 202], 5, 20, 1, 8)
 
-    # corners = myDetectHarrisFeatures(grayscale, image)
-    corners = myDetectHarrisFeatures(grayscale, image)
-    # print(corners)
-    print(len(corners))
+        corners = myDetectHarrisFeatures(grayscale, image)
+        print(len(corners))
+        descriptor = []
 
+        for l, point in enumerate(corners):
+            descriptor[:, l] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+
+        final[:, i] = descriptor
+
+    percentage_thresh = 0.3
+    # matchingPoints = descriptorMatching(poin[x, y]ts1, points2, percentage_thresh)
