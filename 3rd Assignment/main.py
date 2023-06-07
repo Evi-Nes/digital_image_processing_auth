@@ -57,53 +57,44 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
 
     return d
 
-def isCorner(img_gaussian, k, r_thresh, offset, x, y, matrix_R):
-    height = img_gaussian.shape[0]
-    width = img_gaussian.shape[1]
-    matrix_R = np.zeros((height, width))
-
-    #   Step 1 - Calculate the x e y image derivatives (dx e dy)
-    dx = cv2.Sobel(img_gaussian, cv2.CV_64F, 1, 0, ksize=5)
-    dy = cv2.Sobel(img_gaussian, cv2.CV_64F, 0, 1, ksize=5)
-
-    #   Step 2 - Calculate product and second derivatives (dx2, dy2 e dxy)
-    dx2 = np.square(dx)
-    dy2 = np.square(dy)
-    dxy = dx * dy
-
-
-    Sx2 = np.sum(dx2[y - offset:y + 1 + offset, x - offset:x + 1 + offset])
-    Sy2 = np.sum(dy2[y - offset:y + 1 + offset, x - offset:x + 1 + offset])
-    Sxy = np.sum(dxy[y - offset:y + 1 + offset, x - offset:x + 1 + offset])
-
-    #   Step 4 - Define the matrix H(x,y)=[[Sx2,Sxy],[Sxy,Sy2]]
-    H = np.array([[Sx2, Sxy], [Sxy, Sy2]])
-
-    #   Step 5 - Calculate the response function ( R=det(H)-k(Trace(H))^2 )
-    det = np.linalg.det(H)
-    tr = np.matrix.trace(H)
-    R = det - k * (tr ** 2)
-    matrix_R[y - offset, x - offset] = R
-
-    #   Step 6 - Apply a threshold
-    cv2.normalize(matrix_R, matrix_R, 0, 1, cv2.NORM_MINMAX)
-
-    return matrix_R[y, x] > r_thresh
-
 def myDetectHarrisFeatures(img, display_img):
     img_gaussian = cv2.GaussianBlur(img, (3, 3), 0)
     k = 0.04
     r_thresh = 0.3
+    offset = 5
     height = img.shape[0]
     width = img.shape[1]
     matrix_R = np.zeros((height, width))
-
-    offset = 3
     cornerList = []
+
+    # Calculate the x and y image derivatives
+    dx = cv2.Sobel(img_gaussian, cv2.CV_64F, 1, 0, ksize=5)
+    dy = cv2.Sobel(img_gaussian, cv2.CV_64F, 0, 1, ksize=5)
+
+    # Calculate product and second derivatives
+    dx2 = np.square(dx)
+    dy2 = np.square(dy)
+    dxy = dx * dy
+
+    # Calculate derivatives per pixel
+    for y in range(offset, height - offset):
+        for x in range(offset, width - offset):
+            Sx2 = np.sum(dx2[y - offset:y + 1 + offset, x - offset:x + 1 + offset])
+            Sy2 = np.sum(dy2[y - offset:y + 1 + offset, x - offset:x + 1 + offset])
+            Sxy = np.sum(dxy[y - offset:y + 1 + offset, x - offset:x + 1 + offset])
+
+            H = np.array([[Sx2, Sxy], [Sxy, Sy2]])
+
+            # Calculate the response function ( R=det(H)-k(Trace(H))^2 )
+            R = np.linalg.det(H) - k * (np.matrix.trace(H) ** 2)
+            matrix_R[y - offset, x - offset] = R
+
+    # Normalize the R values in the range [0, 1]
+    cv2.normalize(matrix_R, matrix_R, 0, 1, cv2.NORM_MINMAX)
 
     for y in range(offset, height - offset):
         for x in range(offset, width - offset):
-            if isCorner(k, r_thresh, offset, x, y, matrix_R):
+            if matrix_R[y, x] > r_thresh:
                 cornerList.append([x, y])
                 cv2.circle(display_img, (x, y), 3, (0, 255, 0))
 
@@ -112,7 +103,7 @@ def myDetectHarrisFeatures(img, display_img):
 
 
 if __name__ == "__main__":
-    image = cv2.imread("imForest1.png")
+    image = cv2.imread("im1.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     # descriptor = myLocalDescriptor(grayscale, [100, 100], 5, 20, 1, 8)
