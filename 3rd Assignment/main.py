@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 
+debug = False
+
 def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     """
     Computes the local descriptor for each pixel in the image
@@ -151,40 +153,40 @@ if __name__ == "__main__":
     image = cv2.imread("im1.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    # img1 = {"corners": myDetectHarrisFeatures(grayscale, image)}
-    # descriptor = np.zeros((len(img1["corners"]), 15))
-    #
-    # for i, point in enumerate(img1["corners"]):
-    #     descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
-    #
-    # img1["descriptor"] = descriptor
-    # np.save('img1.npy', img1)
+    if debug:
+        img1 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+        descriptor = np.zeros((len(img1["corners"]), 15))
 
-    img1 = np.load('img1.npy', allow_pickle=True).item()
-    print(len(img1["corners"]))
+        for i, point in enumerate(img1["corners"]):
+            descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+
+        img1["descriptor"] = descriptor
+        np.save('img1.npy', img1)
+    else:
+        img1 = np.load('img1.npy', allow_pickle=True).item()
+        print(len(img1["corners"]))
 
     ############### Process the second image ################
     image = cv2.imread("im2.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    # img2 = {"corners": myDetectHarrisFeatures(grayscale, image)}
-    # descriptor = np.zeros((len(img2["corners"]), 15))
-    #
-    # for i, point in enumerate(img2["corners"]):
-    #     descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
-    #
-    # img2["descriptor"] = descriptor
-    # np.save('img2.npy', img2)
+    if debug:
+        img2 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+        descriptor = np.zeros((len(img2["corners"]), 15))
 
-    img2 = np.load('img2.npy', allow_pickle=True).item()
-    print(len(img2["corners"]))
+        for i, point in enumerate(img2["corners"]):
+            descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
 
-    # descriptor = myLocalDescriptor(grayscale, [200, 200], 5, 20, 1, 8)
-    # descriptor = myLocalDescriptor(grayscale, [202, 202], 5, 20, 1, 8)
+        img2["descriptor"] = descriptor
+        np.save('img2.npy', img2)
+    else:
+        img2 = np.load('img2.npy', allow_pickle=True).item()
+        print(len(img2["corners"]))
 
-    # descriptorUp = myLocalDescriptorUpgrade(grayscale, [100, 100], 5, 20, 1, 8)
-    # descriptorUp = myLocalDescriptorUpgrade(grayscale, [200, 200], 5, 20, 1, 8)
-    # descriptorUp = myLocalDescriptorUpgrade(grayscale, [202, 202], 5, 20, 1, 8)
+    # points = np.array([100, 100], [200, 200], [202, 202])
+    # for point in points:
+    #     descriptor = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+    #     descriptorUp = myLocalDescriptorUpgrade(grayscale, point, 5, 20, 1, 8)
 
     percentage_thresh = 30
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
