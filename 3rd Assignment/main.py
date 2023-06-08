@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 from scipy.ndimage import convolve
+
+
 def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     """
     Computes the local descriptor for each pixel in the image
@@ -12,10 +14,12 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     :param N: the number of points in the circle
     :return: descriptor
     """
-    d = np.array([])
-    if p[0] + rhom > img.shape[0] or p[1] + rhom > img.shape[1] or p[0] - rhom < 0 or p[1] - rhom < 0:
+
+    if p[0] + rhoM > img.shape[0] or p[1] + rhoM > img.shape[1] or p[0] - rhoM < 0 or p[1] - rhoM < 0:
+        d = np.zeros((1, 15))
         return d
 
+    d = np.array([])
     for rho in range(rhom, rhoM, rhostep):
         x_rho = []
         for theta in range(0, 360, N):
@@ -25,6 +29,7 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
         d = np.append(d, np.mean(x_rho))
 
     return d
+
 
 def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
     """
@@ -44,10 +49,10 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
     for rho in range(rhom, rhoM, rhostep):
         x_rho = []
         for theta in range(0, 360, N):
-            if theta % (2*N):
+            if theta % (2 * N):
                 x = int(p[0] + rho * np.cos(theta))
                 y = int(p[1] + rho * np.sin(theta))
-                x_rho.append(img[x, y]*2)
+                x_rho.append(img[x, y] * 2)
             else:
                 x = int(p[0] + rho * np.cos(theta))
                 y = int(p[1] + rho * np.sin(theta))
@@ -56,6 +61,7 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
         d = np.append(d, np.mean(x_rho))
 
     return d
+
 
 def myDetectHarrisFeatures(img, display_img):
     """
@@ -107,18 +113,44 @@ def myDetectHarrisFeatures(img, display_img):
     cv2.imwrite("my_corners.jpg", display_img)
     return cornerList
 
-def descriptorMatching(p1, p2, threshold):
 
+def descriptorMatching(p1, p2, threshold):
     return match_points
 
 
 if __name__ == "__main__":
-    final = []
-    for i in range(1, 3):
-        image = cv2.imread(f"im{i}.png")
-        grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    # Process the first image
+    image = cv2.imread("im1.png")
+    grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    # descriptor = myLocalDescriptor(grayscale, [100, 100], 5, 20, 1, 8)
+    # img1 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+    # np.save('img1.npy', img1)
+
+    img1 = np.load('img1.npy', allow_pickle=True).item()
+    print(len(img1["corners"]))
+    descriptor = np.zeros((len(img1["corners"]), 15))
+
+    for i, point in enumerate(img1["corners"]):
+        descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+
+    img1["descriptor"] = descriptor
+
+    # Process the second image
+    image = cv2.imread("im2.png")
+    grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    # img2 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+    # np.save('img2.npy', img2)
+
+    img2 = np.load('img2.npy', allow_pickle=True).item()
+    print(len(img2["corners"]))
+    descriptor = np.zeros((len(img2["corners"]), 15))
+
+    for i, point in enumerate(img2["corners"]):
+        descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+
+    img2["descriptor"] = descriptor
+
     # descriptor = myLocalDescriptor(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptor = myLocalDescriptor(grayscale, [202, 202], 5, 20, 1, 8)
 
@@ -126,14 +158,5 @@ if __name__ == "__main__":
     # descriptorUp = myLocalDescriptorUpgrade(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptorUp = myLocalDescriptorUpgrade(grayscale, [202, 202], 5, 20, 1, 8)
 
-        corners = myDetectHarrisFeatures(grayscale, image)
-        print(len(corners))
-        descriptor = []
-
-        for l, point in enumerate(corners):
-            descriptor[:, l] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
-
-        final[:, i] = descriptor
-
     percentage_thresh = 0.3
-    # matchingPoints = descriptorMatching(poin[x, y]ts1, points2, percentage_thresh)
+    # matchingPoints = descriptorMatching(points1, points2, percentage_thresh)
