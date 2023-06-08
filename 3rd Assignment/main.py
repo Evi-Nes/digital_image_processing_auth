@@ -1,7 +1,5 @@
 import numpy as np
 import cv2
-from scipy.ndimage import convolve
-
 
 def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     """
@@ -29,7 +27,6 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
         d = np.append(d, np.mean(x_rho))
 
     return d
-
 
 def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
     """
@@ -61,7 +58,6 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
         d = np.append(d, np.mean(x_rho))
 
     return d
-
 
 def myDetectHarrisFeatures(img, display_img):
     """
@@ -113,43 +109,75 @@ def myDetectHarrisFeatures(img, display_img):
     cv2.imwrite("my_corners.jpg", display_img)
     return cornerList
 
-
 def descriptorMatching(p1, p2, threshold):
-    return match_points
+    """
+    Matches the descriptors of two images and returns the 30% of the matched points
+    :param p1:
+    :param p2:
+    :param threshold:
+    :return:
+    """
+    matches = []
+    for i, point1 in enumerate(p1["corners"]):
+        all_zeros = all(value == 0 for value in p1["descriptor"][i])
+        if all_zeros:
+            continue
+
+        min1 = 1000000
+        index = 0
+        # dist = np.zeros((15, 1))
+
+        for j, point2 in enumerate(p2["corners"]):
+            all_zeros = all(value == 0 for value in p2["descriptor"][j])
+            if all_zeros:
+                continue
+
+            # for ind, value in enumerate(p2["descriptor"][j]):
+            #     dist[ind] = np.abs(p1["descriptor"][i] - p2["descriptor"][j])
+            dist_sum = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
+
+            if dist_sum < min1:
+                min1 = dist_sum
+                index = j
+
+        matches.append([i, index])
+
+    matches = np.percentile(matches, threshold, axis=0)
+    return matches
 
 
 if __name__ == "__main__":
-    # Process the first image
+    ############### Process the first image #################
     image = cv2.imread("im1.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     # img1 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+    # descriptor = np.zeros((len(img1["corners"]), 15))
+    #
+    # for i, point in enumerate(img1["corners"]):
+    #     descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+    #
+    # img1["descriptor"] = descriptor
     # np.save('img1.npy', img1)
 
     img1 = np.load('img1.npy', allow_pickle=True).item()
     print(len(img1["corners"]))
-    descriptor = np.zeros((len(img1["corners"]), 15))
 
-    for i, point in enumerate(img1["corners"]):
-        descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
-
-    img1["descriptor"] = descriptor
-
-    # Process the second image
+    ############### Process the second image ################
     image = cv2.imread("im2.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     # img2 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+    # descriptor = np.zeros((len(img2["corners"]), 15))
+    #
+    # for i, point in enumerate(img2["corners"]):
+    #     descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+    #
+    # img2["descriptor"] = descriptor
     # np.save('img2.npy', img2)
 
     img2 = np.load('img2.npy', allow_pickle=True).item()
     print(len(img2["corners"]))
-    descriptor = np.zeros((len(img2["corners"]), 15))
-
-    for i, point in enumerate(img2["corners"]):
-        descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
-
-    img2["descriptor"] = descriptor
 
     # descriptor = myLocalDescriptor(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptor = myLocalDescriptor(grayscale, [202, 202], 5, 20, 1, 8)
@@ -158,5 +186,5 @@ if __name__ == "__main__":
     # descriptorUp = myLocalDescriptorUpgrade(grayscale, [200, 200], 5, 20, 1, 8)
     # descriptorUp = myLocalDescriptorUpgrade(grayscale, [202, 202], 5, 20, 1, 8)
 
-    percentage_thresh = 0.3
-    # matchingPoints = descriptorMatching(points1, points2, percentage_thresh)
+    percentage_thresh = 30
+    matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
