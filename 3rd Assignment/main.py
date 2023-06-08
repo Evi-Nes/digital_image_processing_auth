@@ -121,17 +121,16 @@ def descriptorMatching(p1, p2, threshold):
     """
     matches = []
     used_indexes = np.array([])
+
     for i, point1 in enumerate(p1["corners"]):
-        all_zeros = all(value == 0 for value in p1["descriptor"][i])
-        if all_zeros:
+        if all(value == 0 for value in p1["descriptor"][i]):
             continue
 
-        min1 = 1000000
+        min1 = np.inf
         index = 0
 
         for j, point2 in enumerate(p2["corners"]):
-            all_zeros = all(value == 0 for value in p2["descriptor"][j])
-            if all_zeros:
+            if all(value == 0 for value in p2["descriptor"][j]):
                 continue
 
             if j in used_indexes:
@@ -146,22 +145,26 @@ def descriptorMatching(p1, p2, threshold):
         used_indexes = np.append(used_indexes, index)
         matches.append([i, index])
 
-    matches = np.percentile(matches, threshold, axis=0)
+    matches = np.array(matches)
+    # matches = matches[matches[:, 1] != 0]
+    # num_to_extract = int(matches.size * threshold)
+    # matches = matches[:num_to_extract, :]
+
     return matches
 
 
 if __name__ == "__main__":
     # Process the first image ########
-    image = cv2.imread("im1.png")
-    grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    image1 = cv2.imread("imForest1.png")
+    grayscale1 = cv2.cvtColor(image1, cv2.COLOR_RGB2GRAY)
 
     if debug:
-        img1 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+        img1 = {"corners": myDetectHarrisFeatures(grayscale1, image1)}
         print(len(img1["corners"]))
         descriptor = np.zeros((len(img1["corners"]), 15))
 
         for i, point in enumerate(img1["corners"]):
-            descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+            descriptor[i, :] = myLocalDescriptor(grayscale1, point, 5, 20, 1, 8)
 
         img1["descriptor"] = descriptor
         np.save('img1.npy', img1)
@@ -170,16 +173,16 @@ if __name__ == "__main__":
         print(len(img1["corners"]))
 
     # Process the second image ########
-    image = cv2.imread("im2.png")
-    grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    image2 = cv2.imread("imForest2.png")
+    grayscale2 = cv2.cvtColor(image2, cv2.COLOR_RGB2GRAY)
 
     if debug:
-        img2 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+        img2 = {"corners": myDetectHarrisFeatures(grayscale2, image2)}
         print(len(img2["corners"]))
         descriptor = np.zeros((len(img2["corners"]), 15))
 
         for i, point in enumerate(img2["corners"]):
-            descriptor[i, :] = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
+            descriptor[i, :] = myLocalDescriptor(grayscale2, point, 5, 20, 1, 8)
 
         img2["descriptor"] = descriptor
         np.save('img2.npy', img2)
@@ -193,5 +196,12 @@ if __name__ == "__main__":
     #     descriptorUp = myLocalDescriptorUpgrade(grayscale, point, 5, 20, 1, 8)
 
     # Matching the descriptors ########
-    percentage_thresh = 30
+    percentage_thresh = 0.3
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
+
+    comb_image = cv2.imread("comb_forest.png")
+    for match in matchingPoints:
+        cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
+                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[0], int(img2["corners"][int(match[1])][1])), (0, 255, 0), 1)
+
+    cv2.imwrite("matchingPoints.jpg", comb_image)
