@@ -70,7 +70,7 @@ def myDetectHarrisFeatures(img, display_img):
     """
     img_gaussian = cv2.GaussianBlur(img, (3, 3), 0)
     k = 0.04
-    r_thresh = 0.3
+    r_thresh = 0.4
     offset = 5
     height = img.shape[0]
     width = img.shape[1]
@@ -108,18 +108,19 @@ def myDetectHarrisFeatures(img, display_img):
                 cornerList.append([x, y])
                 cv2.circle(display_img, (x, y), 3, (0, 255, 0))
 
-    cv2.imwrite("my_corners.jpg", display_img)
+    cv2.imwrite("my_corners_img.jpg", display_img)
     return cornerList
 
 def descriptorMatching(p1, p2, threshold):
     """
     Matches the descriptors of two images and returns the 30% of the matched points
-    :param p1:
-    :param p2:
-    :param threshold:
-    :return:
+    :param p1: the dictionary of first image
+    :param p2: the dictionary of second image
+    :param threshold: the percentage of the matched points we want to return
+    :return: the matched points
     """
     matches = []
+    used_indexes = np.array([])
     for i, point1 in enumerate(p1["corners"]):
         all_zeros = all(value == 0 for value in p1["descriptor"][i])
         if all_zeros:
@@ -127,21 +128,22 @@ def descriptorMatching(p1, p2, threshold):
 
         min1 = 1000000
         index = 0
-        # dist = np.zeros((15, 1))
 
         for j, point2 in enumerate(p2["corners"]):
             all_zeros = all(value == 0 for value in p2["descriptor"][j])
             if all_zeros:
                 continue
 
-            # for ind, value in enumerate(p2["descriptor"][j]):
-            #     dist[ind] = np.abs(p1["descriptor"][i] - p2["descriptor"][j])
+            if j in used_indexes:
+                continue
+
             dist_sum = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
 
             if dist_sum < min1:
                 min1 = dist_sum
                 index = j
 
+        used_indexes = np.append(used_indexes, index)
         matches.append([i, index])
 
     matches = np.percentile(matches, threshold, axis=0)
@@ -149,12 +151,13 @@ def descriptorMatching(p1, p2, threshold):
 
 
 if __name__ == "__main__":
-    ############### Process the first image #################
+    # Process the first image ########
     image = cv2.imread("im1.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     if debug:
         img1 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+        print(len(img1["corners"]))
         descriptor = np.zeros((len(img1["corners"]), 15))
 
         for i, point in enumerate(img1["corners"]):
@@ -166,12 +169,13 @@ if __name__ == "__main__":
         img1 = np.load('img1.npy', allow_pickle=True).item()
         print(len(img1["corners"]))
 
-    ############### Process the second image ################
+    # Process the second image ########
     image = cv2.imread("im2.png")
     grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     if debug:
         img2 = {"corners": myDetectHarrisFeatures(grayscale, image)}
+        print(len(img2["corners"]))
         descriptor = np.zeros((len(img2["corners"]), 15))
 
         for i, point in enumerate(img2["corners"]):
@@ -188,5 +192,6 @@ if __name__ == "__main__":
     #     descriptor = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
     #     descriptorUp = myLocalDescriptorUpgrade(grayscale, point, 5, 20, 1, 8)
 
+    # Matching the descriptors ########
     percentage_thresh = 30
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
