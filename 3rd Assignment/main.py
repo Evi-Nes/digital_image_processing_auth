@@ -3,6 +3,7 @@ import cv2
 
 debug = True
 
+
 def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     """
     Computes the local descriptor for each pixel in the image
@@ -22,7 +23,7 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     d = np.array([])
     for rho in range(rhom, rhoM, rhostep):
         x_rho = []
-        for theta in range(0, 360, 360//N):
+        for theta in range(0, 360, 360 // N):
             x_1 = int(p[0] + rho * np.cos(theta))
             x_2 = x_1 + 1
             y_1 = int(p[1] + rho * np.sin(theta))
@@ -33,6 +34,7 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
         d = np.append(d, np.mean(x_rho))
 
     return d
+
 
 def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
     """
@@ -51,7 +53,7 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
 
     for rho in range(rhom, rhoM, rhostep):
         x_rho = []
-        for theta in range(0, 360, 360//N):
+        for theta in range(0, 360, 360 // N):
             if theta % (2 * N):
                 x = int(p[0] + rho * np.cos(theta))
                 y = int(p[1] + rho * np.sin(theta))
@@ -65,6 +67,24 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
 
     return d
 
+
+def filter_close_points(coordinates, distance_threshold):
+    filtered_coordinates = []
+
+    for i, (x1, y1) in enumerate(coordinates):
+        is_close = False
+
+        for j, (x2, y2) in enumerate(coordinates[i + 1:], start=i + 1):
+            distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+
+            if distance < distance_threshold:
+                is_close = True
+                break
+
+        if not is_close:
+            filtered_coordinates.append((x1, y1))
+
+    return filtered_coordinates
 def myDetectHarrisFeatures(img, display_img):
     """
     Detects all the corners in the given image using the derivatives of x-axis and y-axis.
@@ -74,7 +94,7 @@ def myDetectHarrisFeatures(img, display_img):
     """
     img_gaussian = cv2.GaussianBlur(img, (3, 3), 0)
     k = 0.04
-    r_thresh = 0.4
+    r_thresh = 0.3
     offset = 5
     height = img.shape[0]
     width = img.shape[1]
@@ -115,6 +135,7 @@ def myDetectHarrisFeatures(img, display_img):
     cv2.imwrite("my_corners_img.jpg", display_img)
     return cornerList
 
+
 def descriptorMatching(p1, p2, threshold):
     """
     Matches the descriptors of two images and returns the 30% of the matched points
@@ -125,29 +146,30 @@ def descriptorMatching(p1, p2, threshold):
     """
     matches = []
     used_indexes = np.array([])
+    dist_sum = np.empty((len(p1["corners"]), len(p2["corners"])))
 
     for i, point1 in enumerate(p1["corners"]):
         if all(value == 0 for value in p1["descriptor"][i]):
             continue
 
-        min1 = np.inf
-        index = 0
-
         for j, point2 in enumerate(p2["corners"]):
             if all(value == 0 for value in p2["descriptor"][j]):
                 continue
 
-            if j in used_indexes:
-                continue
+            dist_sum[i, j] = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
 
-            dist_sum = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
+    # p1['corners'] = np.flip(p1['corners'])
+    length = min(len(p1['corners']), len(p2['corners']))
 
-            if dist_sum < min1:
-                min1 = dist_sum
-                index = j
-
+    for line in range(length):
+        sorted_indices = np.argsort(dist_sum[line])
+        i = 0
+        index = sorted_indices[i]
+        while index in used_indexes:
+            i += 1
+            index = sorted_indices[i]
         used_indexes = np.append(used_indexes, index)
-        matches.append([i, index])
+        matches.append([line, index])
 
     matches = np.array(matches)
     # matches = matches[matches[:, 1] != 0]
@@ -158,12 +180,13 @@ def descriptorMatching(p1, p2, threshold):
 
 
 if __name__ == "__main__":
-    # Process the first image ########
+    # Process the first image ######################
     image1 = cv2.imread("im1.png")
     grayscale1 = cv2.cvtColor(image1, cv2.COLOR_RGB2GRAY)
 
     if debug:
-        img1 = {"corners": myDetectHarrisFeatures(grayscale1, image1)}
+        coordinates = myDetectHarrisFeatures(grayscale1, image1)
+        img1 = {"corners": filter_close_points(coordinates, distance_threshold=5)}
         print(len(img1["corners"]))
         descriptor = np.zeros((len(img1["corners"]), 15))
 
@@ -176,12 +199,13 @@ if __name__ == "__main__":
         img1 = np.load('img1.npy', allow_pickle=True).item()
         print(len(img1["corners"]))
 
-    # Process the second image ########
+    # Process the second image ######################
     image2 = cv2.imread("im2.png")
     grayscale2 = cv2.cvtColor(image2, cv2.COLOR_RGB2GRAY)
 
     if debug:
-        img2 = {"corners": myDetectHarrisFeatures(grayscale2, image2)}
+        coordinates = myDetectHarrisFeatures(grayscale2, image2)
+        img2 = {"corners": filter_close_points(coordinates, distance_threshold=5)}
         print(len(img2["corners"]))
         descriptor = np.zeros((len(img2["corners"]), 15))
 
@@ -199,13 +223,14 @@ if __name__ == "__main__":
     #     descriptor = myLocalDescriptor(grayscale, point, 5, 20, 1, 8)
     #     descriptorUp = myLocalDescriptorUpgrade(grayscale, point, 5, 20, 1, 8)
 
-    # Matching the descriptors ########
+    # Matching the descriptors ######################
     percentage_thresh = 0.3
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
 
     comb_image = cv2.imread("combined.png")
     for match in matchingPoints:
         cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
-                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[0], int(img2["corners"][int(match[1])][1])), (0, 255, 0), 1)
+                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[0], int(img2["corners"][int(match[1])][1])),
+                 (0, 255, 0), 1)
 
     cv2.imwrite("matchingPoints.jpg", comb_image)
