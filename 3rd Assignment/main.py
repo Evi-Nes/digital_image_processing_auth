@@ -1,8 +1,7 @@
 import numpy as np
 import cv2
 
-debug = True
-
+debug = False
 
 def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     """
@@ -35,7 +34,6 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
 
     return d
 
-
 def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
     """
     Computes the local descriptor for each pixel in the image, based on our ideas
@@ -67,14 +65,19 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
 
     return d
 
-
-def filter_close_points(coordinates, distance_threshold):
+def filterClosePoints(coords, distance_threshold):
+    """
+    Removes the points that are closer than the distance_threshold with each other
+    :param coords: the coordinates of the detected corners
+    :param distance_threshold: the minimum distance between two points
+    :return: a list that contains the filtered coordinates
+    """
     filtered_coordinates = []
 
-    for i, (x1, y1) in enumerate(coordinates):
+    for i, (x1, y1) in enumerate(coords):
         is_close = False
 
-        for j, (x2, y2) in enumerate(coordinates[i + 1:], start=i + 1):
+        for j, (x2, y2) in enumerate(coords[i + 1:], start=i + 1):
             distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
 
             if distance < distance_threshold:
@@ -85,6 +88,7 @@ def filter_close_points(coordinates, distance_threshold):
             filtered_coordinates.append((x1, y1))
 
     return filtered_coordinates
+
 def myDetectHarrisFeatures(img, display_img):
     """
     Detects all the corners in the given image using the derivatives of x-axis and y-axis.
@@ -135,14 +139,13 @@ def myDetectHarrisFeatures(img, display_img):
     cv2.imwrite("my_corners_img.jpg", display_img)
     return cornerList
 
-
 def descriptorMatching(p1, p2, threshold):
     """
     Matches the descriptors of two images and returns the 30% of the matched points
     :param p1: the dictionary of first image
     :param p2: the dictionary of second image
     :param threshold: the percentage of the matched points we want to return
-    :return: the matched points
+    :return: a list that contains the matched points
     """
     matches = []
     used_indexes = np.array([])
@@ -159,20 +162,22 @@ def descriptorMatching(p1, p2, threshold):
             dist_sum[i, j] = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
 
     # p1['corners'] = np.flip(p1['corners'])
-    length = min(len(p1['corners']), len(p2['corners']))
+    length = min(len(p1["corners"]), len(p2["corners"]))
 
     for line in range(length):
         sorted_indices = np.argsort(dist_sum[line])
         i = 0
         index = sorted_indices[i]
+
         while index in used_indexes:
             i += 1
             index = sorted_indices[i]
+
         used_indexes = np.append(used_indexes, index)
         matches.append([line, index])
 
     matches = np.array(matches)
-    # matches = matches[matches[:, 1] != 0]
+    matches = matches[matches[:, 1] != 0]
     # num_to_extract = int(matches.size * threshold)
     # matches = matches[:num_to_extract, :]
 
@@ -186,7 +191,7 @@ if __name__ == "__main__":
 
     if debug:
         coordinates = myDetectHarrisFeatures(grayscale1, image1)
-        img1 = {"corners": filter_close_points(coordinates, distance_threshold=5)}
+        img1 = {"corners": filterClosePoints(coordinates, distance_threshold=5)}
         print(len(img1["corners"]))
         descriptor = np.zeros((len(img1["corners"]), 15))
 
@@ -205,7 +210,7 @@ if __name__ == "__main__":
 
     if debug:
         coordinates = myDetectHarrisFeatures(grayscale2, image2)
-        img2 = {"corners": filter_close_points(coordinates, distance_threshold=5)}
+        img2 = {"corners": filterClosePoints(coordinates, distance_threshold=5)}
         print(len(img2["corners"]))
         descriptor = np.zeros((len(img2["corners"]), 15))
 
