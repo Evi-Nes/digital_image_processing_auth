@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-debug = False
+debug = True
 
 def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     """
@@ -22,10 +22,14 @@ def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
     d = np.array([])
     for rho in range(rhom, rhoM, rhostep):
         x_rho = []
-        for theta in range(0, 360, N):
-            x = int(p[0] + rho * np.cos(theta))
-            y = int(p[1] + rho * np.sin(theta))
-            x_rho.append(img[x, y])
+        for theta in range(0, 360, 360//N):
+            x_1 = int(p[0] + rho * np.cos(theta))
+            x_2 = x_1 + 1
+            y_1 = int(p[1] + rho * np.sin(theta))
+            y_2 = y_1 + 1
+            interpolated_value = np.mean([[img[x_1, y_1], img[x_2, y_2], img[x_1, y_2], img[x_2, y_2]]])
+
+            x_rho.append(interpolated_value)
         d = np.append(d, np.mean(x_rho))
 
     return d
@@ -47,7 +51,7 @@ def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
 
     for rho in range(rhom, rhoM, rhostep):
         x_rho = []
-        for theta in range(0, 360, N):
+        for theta in range(0, 360, 360//N):
             if theta % (2 * N):
                 x = int(p[0] + rho * np.cos(theta))
                 y = int(p[1] + rho * np.sin(theta))
@@ -155,7 +159,7 @@ def descriptorMatching(p1, p2, threshold):
 
 if __name__ == "__main__":
     # Process the first image ########
-    image1 = cv2.imread("imForest1.png")
+    image1 = cv2.imread("im1.png")
     grayscale1 = cv2.cvtColor(image1, cv2.COLOR_RGB2GRAY)
 
     if debug:
@@ -173,7 +177,7 @@ if __name__ == "__main__":
         print(len(img1["corners"]))
 
     # Process the second image ########
-    image2 = cv2.imread("imForest2.png")
+    image2 = cv2.imread("im2.png")
     grayscale2 = cv2.cvtColor(image2, cv2.COLOR_RGB2GRAY)
 
     if debug:
@@ -199,7 +203,7 @@ if __name__ == "__main__":
     percentage_thresh = 0.3
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
 
-    comb_image = cv2.imread("comb_forest.png")
+    comb_image = cv2.imread("combined.png")
     for match in matchingPoints:
         cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
                  (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[0], int(img2["corners"][int(match[1])][1])), (0, 255, 0), 1)
