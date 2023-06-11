@@ -98,7 +98,7 @@ def myDetectHarrisFeatures(img, display_img):
     """
     img_gaussian = cv2.GaussianBlur(img, (3, 3), 0)
     k = 0.04
-    r_thresh = 0.3
+    r_thresh = 0.2
     offset = 5
     height = img.shape[0]
     width = img.shape[1]
@@ -186,7 +186,7 @@ def descriptorMatching(p1, p2, threshold):
 
 if __name__ == "__main__":
     # Process the first image ######################
-    image1 = cv2.imread("im1.png")
+    image1 = cv2.imread("imForest1.png")
     grayscale1 = cv2.cvtColor(image1, cv2.COLOR_RGB2GRAY)
 
     if debug:
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         print(len(img1["corners"]))
 
     # Process the second image ######################
-    image2 = cv2.imread("im2.png")
+    image2 = cv2.imread("imForest2.png")
     grayscale2 = cv2.cvtColor(image2, cv2.COLOR_RGB2GRAY)
 
     if debug:
@@ -232,10 +232,10 @@ if __name__ == "__main__":
     percentage_thresh = 0.3
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
 
-    comb_image = cv2.imread("combined.png")
+    comb_image = cv2.imread("comb_forest.png")
     for match in matchingPoints:
         cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
-                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[0], int(img2["corners"][int(match[1])][1])),
+                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[1], int(img2["corners"][int(match[1])][1])),
                  (0, 255, 0), 1)
 
     cv2.imwrite("matchingPoints.jpg", comb_image)
