@@ -23,13 +23,9 @@ def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     for radius in range(r_min, r_max, r_step):
         x_rho = []
         for theta in range(0, 360, 360 // num_points):
-            x_1 = int(p[0] + radius * np.cos(theta))
-            x_2 = x_1 + 1
-            y_1 = int(p[1] + radius * np.sin(theta))
-            y_2 = y_1 + 1
-            interpolated_value = np.mean([[img[x_1, y_1], img[x_2, y_2], img[x_1, y_2], img[x_2, y_2]]])
-
-            x_rho.append(interpolated_value)
+            x = int(p[0] + radius * np.cos(theta))
+            y = int(p[1] + radius * np.sin(theta))
+            x_rho.append(img[x, y])
 
         d[radius] = np.mean(x_rho)
 
