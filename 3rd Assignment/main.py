@@ -3,56 +3,57 @@ import cv2
 
 debug = False
 
-def myLocalDescriptor(img, p, rhom, rhoM, rhostep, N):
+def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     """
     Computes the local descriptor for each pixel in the image
     :param img: the given image
     :param p: the given pixel
-    :param rhom: the minimum radius
-    :param rhoM: the maximum radius
-    :param rhostep: the step of the radius
-    :param N: the number of points in the circle
-    :return: descriptor
+    :param r_min: the minimum radius
+    :param r_max: the maximum radius
+    :param r_step: the step of the radius
+    :param num_points: the number of points in the circle
+    :return: descriptor that contains a value for each radius
     """
+    size = (r_max - r_min) // r_step
+    d = np.zeros((1, size))
 
-    if p[0] + rhoM > img.shape[0] or p[1] + rhoM > img.shape[1] or p[0] - rhoM < 0 or p[1] - rhoM < 0:
-        d = np.zeros((1, 15))
+    if p[0] + r_max > img.shape[1] or p[1] + r_max > img.shape[0] or p[0] - r_max < 0 or p[1] - r_max < 0:
         return d
 
-    d = np.array([])
-    for rho in range(rhom, rhoM, rhostep):
+    for radius in range(r_min, r_max, r_step):
         x_rho = []
-        for theta in range(0, 360, 360 // N):
-            x_1 = int(p[0] + rho * np.cos(theta))
+        for theta in range(0, 360, 360 // num_points):
+            x_1 = int(p[0] + radius * np.cos(theta))
             x_2 = x_1 + 1
-            y_1 = int(p[1] + rho * np.sin(theta))
+            y_1 = int(p[1] + radius * np.sin(theta))
             y_2 = y_1 + 1
             interpolated_value = np.mean([[img[x_1, y_1], img[x_2, y_2], img[x_1, y_2], img[x_2, y_2]]])
 
             x_rho.append(interpolated_value)
-        d = np.append(d, np.mean(x_rho))
+
+        d[radius] = np.mean(x_rho)
 
     return d
 
-def myLocalDescriptorUpgrade(img, p, rhom, rhoM, rhostep, N):
+def myLocalDescriptorUpgrade(img, p, r_min, r_max, r_step, num_points):
     """
     Computes the local descriptor for each pixel in the image, based on our ideas
     :param img: the given grayscale image
     :param p: the given pixel
-    :param rhom: the minimum radius
-    :param rhoM: the maximum radius
-    :param rhostep: the step of the radius
-    :param N: the number of points in the circle
+    :param r_min: the minimum radius
+    :param r_max: the maximum radius
+    :param r_step: the step of the radius
+    :param num_points: the number of points in the circle
     :return: descriptor
     """
     d = np.array([])
-    if p[0] + rhom > img.shape[0] or p[1] + rhom > img.shape[1] or p[0] - rhom < 0 or p[1] - rhom < 0:
+    if p[0] + r_min > img.shape[0] or p[1] + r_min > img.shape[1] or p[0] - r_min < 0 or p[1] - r_min < 0:
         return d
 
-    for rho in range(rhom, rhoM, rhostep):
+    for rho in range(r_min, r_max, r_step):
         x_rho = []
-        for theta in range(0, 360, 360 // N):
-            if theta % (2 * N):
+        for theta in range(0, 360, 360 // num_points):
+            if theta % (2 * num_points):
                 x = int(p[0] + rho * np.cos(theta))
                 y = int(p[1] + rho * np.sin(theta))
                 x_rho.append(img[x, y] * 2)
