@@ -93,12 +93,11 @@ def myDetectHarrisFeatures(img, display_img):
     :param display_img: the given image used for cv2.circle
     :return: the detected corners [x,y]
     """
-    # img_gaussian = cv2.GaussianBlur(img, (3, 3), 0)
-    display_img = cv2.bilateralFilter(img, 11, 75, 75)
+    # display_img = cv2.bilateralFilter(img, 11, 75, 75)
     img_gaussian = cv2.bilateralFilter(img, 11, 75, 75)
     k = 0.04
     r_thresh = 0.2
-    offset = 5
+    offset = 8
     height = img.shape[0]
     width = img.shape[1]
     matrix_R = np.zeros((height, width))
@@ -136,7 +135,7 @@ def myDetectHarrisFeatures(img, display_img):
                 cv2.circle(display_img, (x, y), 1, (0, 255, 0), 1)
 
     cv2.imwrite("my_corners_img.jpg", display_img)
-    print(len(cornerList))
+
     return cornerList
 
 def descriptorMatching(p1, p2, threshold):
@@ -191,16 +190,21 @@ if __name__ == "__main__":
 
     if debug:
         coordinates = myDetectHarrisFeatures(grayscale1, image1)
-        breakpoint()
-        # filterClosePoints(coordinates, distance_threshold=5)
-        img1 = {"corners": coordinates}
-        print(len(img1["corners"]))
-        descriptor = np.zeros((len(img1["corners"]), 15))
+        print(len(coordinates))
+        filtered_coordinates = filterClosePoints(coordinates, distance_threshold=5)
+        img1 = {"corners": filtered_coordinates}
+        print(len(filtered_coordinates))
 
+        for x, y in filtered_coordinates:
+            cv2.circle(image1, (x, y), 1, (0, 255, 0), 1)
+        cv2.imwrite("my_filt_corners_img.jpg", image1)
+        breakpoint()
+
+        descriptor = np.zeros((len(img1["corners"]), 15))
         for i, point in enumerate(img1["corners"]):
             descriptor[i, :] = myLocalDescriptor(grayscale1, point, 5, 20, 1, 8)
         print(descriptor)
-        breakpoint()
+
         img1["descriptor"] = descriptor
         np.save('img1.npy', img1)
     else:
