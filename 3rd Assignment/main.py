@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-debug = True
+debug = False
 
 def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     """
@@ -20,15 +20,16 @@ def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     if p[0] + r_max > img.shape[1] or p[1] + r_max > img.shape[0] or p[0] - r_max < 0 or p[1] - r_max < 0:
         return d
 
+    index = 0
     for radius in range(r_min, r_max, r_step):
         x_rho = []
         for theta in range(0, 360, 360 // num_points):
             x = int(p[0] + radius * np.cos(theta))
             y = int(p[1] + radius * np.sin(theta))
-            x_rho.append(img[x, y])
+            x_rho.append(img[y, x])
 
-        d[radius] = np.mean(x_rho)
-
+        d[0, index] = np.mean(x_rho)
+        index += 1
     return d
 
 def myLocalDescriptorUpgrade(img, p, r_min, r_max, r_step, num_points):
@@ -93,7 +94,7 @@ def myDetectHarrisFeatures(img, display_img):
     :param display_img: the given image used for cv2.circle
     :return: the detected corners [x,y]
     """
-    img_gaussian = cv2.bilateralFilter(img, 11, 75, 75)
+    img_gaussian = cv2.bilateralFilter(img, 11, 80, 80)
     k = 0.04
     r_thresh = 0.2
     offset = 8
@@ -137,49 +138,90 @@ def myDetectHarrisFeatures(img, display_img):
 
     return cornerList
 
+# def descriptorMatching(p1, p2, threshold):
+#     """
+#     Matches the descriptors of two points of the two images and returns the 30% of the matched points
+#     :param p1: the dictionary of first image
+#     :param p2: the dictionary of second image
+#     :param threshold: the percentage of the matched points we want to return
+#     :return: a list that contains the matched points
+#     """
+#     matches = []
+#     used_indexes = np.array([])
+#     dist_sum = np.empty((len(p1["corners"]), len(p2["corners"])))
+#
+#     for i, point1 in enumerate(p1["corners"]):
+#         if all(value == 0 for value in p1["descriptor"][i]):
+#             continue
+#
+#         for j, point2 in enumerate(p2["corners"]):
+#             if all(value == 0 for value in p2["descriptor"][j]):
+#                 continue
+#
+#             dist_sum[i, j] = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
+#
+#     # p1['corners'] = np.flip(p1['corners'])
+#     length = min(len(p1["corners"]), len(p2["corners"]))
+#
+#     for line in range(length):
+#         sorted_indices = np.argsort(dist_sum[line])
+#         i = 0
+#         index = sorted_indices[i]
+#
+#         while index in used_indexes:
+#             i += 1
+#             index = sorted_indices[i]
+#
+#         used_indexes = np.append(used_indexes, index)
+#         matches.append([line, index])
+#
+#     matches = np.array(matches)
+#     matches = matches[matches[:, 1] != 0]
+#     # num_to_extract = int(matches.size * threshold)
+#     # matches = matches[:num_to_extract, :]
+#
+#     return matches
+
+
 def descriptorMatching(p1, p2, threshold):
     """
-    Matches the descriptors of two images and returns the 30% of the matched points
+    Matches the descriptors of two points of the two images and returns the 30% of the matched points
     :param p1: the dictionary of first image
     :param p2: the dictionary of second image
     :param threshold: the percentage of the matched points we want to return
     :return: a list that contains the matched points
     """
-    matches = []
-    used_indexes = np.array([])
-    dist_sum = np.empty((len(p1["corners"]), len(p2["corners"])))
+    # Extract descriptors from the dictionaries p1 and p2
+    descriptors1 = p1["descriptor"]
+    descriptors2 = p2["descriptor"]
+    # Convert descriptors to compatible format
+    descriptors1 = np.float32(descriptors1)
+    descriptors2 = np.float32(descriptors2)
 
-    for i, point1 in enumerate(p1["corners"]):
-        if all(value == 0 for value in p1["descriptor"][i]):
-            continue
+    # Find indices of non-zero descriptors
+    non_zero_indices1 = np.nonzero(np.sum(descriptors1, axis=1))
+    non_zero_indices2 = np.nonzero(np.sum(descriptors2, axis=1))
 
-        for j, point2 in enumerate(p2["corners"]):
-            if all(value == 0 for value in p2["descriptor"][j]):
-                continue
+    # Filter out points with zero descriptors
+    descriptors1 = descriptors1[non_zero_indices1]
+    descriptors2 = descriptors2[non_zero_indices2]
 
-            dist_sum[i, j] = np.sum(np.abs(p1["descriptor"][i] - p2["descriptor"][j]))
+    # Create a Brute-Force Matcher object
+    # matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+    matcher = cv2.FlannBasedMatcher_create()
+    # Perform descriptor matching
+    matches = matcher.match(descriptors1, descriptors2)
 
-    # p1['corners'] = np.flip(p1['corners'])
-    length = min(len(p1["corners"]), len(p2["corners"]))
+    matches = list(matches)
+    # Sort the matches based on their distance
+    matches.sort(key=lambda x: x.distance)
 
-    for line in range(length):
-        sorted_indices = np.argsort(dist_sum[line])
-        i = 0
-        index = sorted_indices[i]
+    # Calculate the threshold value for the number of matched points
+    num_threshold = int(len(matches) * threshold)
 
-        while index in used_indexes:
-            i += 1
-            index = sorted_indices[i]
-
-        used_indexes = np.append(used_indexes, index)
-        matches.append([line, index])
-
-    matches = np.array(matches)
-    matches = matches[matches[:, 1] != 0]
-    # num_to_extract = int(matches.size * threshold)
-    # matches = matches[:num_to_extract, :]
-
-    return matches
+    # Return the top `num_threshold` matched points
+    matched_points = [(match.queryIdx, match.trainIdx) for match in matches[:num_threshold]]
+    return matched_points
 
 
 if __name__ == "__main__":
@@ -195,15 +237,14 @@ if __name__ == "__main__":
         img1 = {"corners": filtered_coordinates}
         print('filtered', len(filtered_coordinates))
 
-        for x, y in filtered_coordinates:
-            cv2.circle(copyImg1, (x, y), 1, (0, 255, 0), 1)
-        cv2.imwrite("my_filt_corners_img.jpg", copyImg1)
-        breakpoint()
+        # for x, y in filtered_coordinates:
+        #     cv2.circle(copyImg1, (x, y), 1, (0, 255, 0), 1)
+        # cv2.imwrite("my_filt_corners_img.jpg", copyImg1)
+        # breakpoint()
 
         descriptor = np.zeros((len(img1["corners"]), 15))
         for i, point in enumerate(img1["corners"]):
             descriptor[i, :] = myLocalDescriptor(grayscale1, point, 5, 20, 1, 8)
-        print(descriptor)
 
         img1["descriptor"] = descriptor
         np.save('img1.npy', img1)
@@ -217,7 +258,8 @@ if __name__ == "__main__":
 
     if debug:
         coordinates = myDetectHarrisFeatures(grayscale2, image2)
-        img2 = {"corners": filterClosePoints(coordinates, distance_threshold=5)}
+        filtered_coordinates = filterClosePoints(coordinates, distance_threshold=5)
+        img2 = {"corners": filtered_coordinates}
         print(len(img2["corners"]))
         descriptor = np.zeros((len(img2["corners"]), 15))
 
@@ -239,7 +281,7 @@ if __name__ == "__main__":
     percentage_thresh = 0.3
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
 
-    comb_image = cv2.imread("comb_forest.png")
+    comb_image = cv2.imread("combined.png")
     for match in matchingPoints:
         cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
                  (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[1], int(img2["corners"][int(match[1])][1])),
