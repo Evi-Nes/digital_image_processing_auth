@@ -1,6 +1,9 @@
 import numpy as np
 import cv2
 
+# Make sure to set this to True when you want to run all the functions and detect the corners
+debug = False
+
 def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     """
     Computes the local descriptor for each pixel in the image, using circles of different radius.
@@ -13,7 +16,7 @@ def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     :return: descriptor that contains a value for each radius
     """
     size = (r_max - r_min) // r_step
-    d = np.zeros((1, size))
+    d = np.full((1, size), 1e20)
 
     if p[0] + r_max > img.shape[1] or p[1] + r_max > img.shape[0] or p[0] - r_max < 0 or p[1] - r_max < 0:
         return d
@@ -38,7 +41,7 @@ def myDetectHarrisFeatures(display_img, gray_img):
     """
     img_gaussian = cv2.bilateralFilter(gray_img, 11, 80, 80)
     k = 0.04
-    r_thresh = 0.1
+    r_thresh = 0.30
     offset = 8
     height = gray_img.shape[0]
     width = gray_img.shape[1]
@@ -113,52 +116,59 @@ def preProcessCorners(img, gray, r_min, r_max, r_step, num_per_circle, matrix_si
     coordinates = myDetectHarrisFeatures(img, gray)
     print('coords', len(coordinates))
 
-    filtered_coordinates = filterClosePoints(coordinates, distance_threshold=5)
-    print('filtered', len(filtered_coordinates))
+    # filtered_coordinates = filterClosePoints(coordinates, distance_threshold=5)
+    # print('filtered', len(filtered_coordinates))
 
-    descriptor = np.zeros((len(img1["corners"]), matrix_size))
-    for i, point in enumerate(filtered_coordinates):
+    descriptor = np.zeros((len(coordinates), matrix_size))
+    for i, point in enumerate(coordinates):
         descriptor[i, :] = myLocalDescriptor(gray, point, r_min, r_max, r_step, num_per_circle)
 
     return coordinates, descriptor
 
-def descriptorMatching(p1, p2, threshold):
+def calculateDistances(corners1, corners2, descriptors1, descriptors2):
+    """
+    Calculates the Euclidean distances as the absolute value of the difference between the two points.
+    :param corners1: the detected corners from the first image
+    :param corners2: the detected corners from the second image
+    :return: the Euclidean distances
+    """
+    for index1, corner1 in enumerate(corners1):
+        distances = np.zeros((len(corners1), len(corners2)))
+        for index2, corner2 in enumerate(corners2):
+            descriptor1 = np.array(descriptors1[index1])
+            descriptor2 = np.array(descriptors2[index2])
+            distances[index1, index2] = np.abs(np.linalg.norm(descriptor1 - descriptor2))
+
+    np.save("distances.npy", distances)
+def descriptorMatching(p1, p2, thresh):
     """
     Matches the descriptors of two points of the two images and returns the 30% of the matched points
     :param p1: the dictionary of first image
     :param p2: the dictionary of second image
-    :param threshold: the percentage of the matched points we want to return
+    :param thresh: the percentage of the matched points we want to return
     :return: a list that contains the matched points
     """
-    descriptors1 = p1["descriptor"]
-    descriptors2 = p2["descriptor"]
-    descriptors1 = np.float32(descriptors1)
-    descriptors2 = np.float32(descriptors2)
+    corners1, descriptors1 = p1["corners"], p1["descriptor"]
+    corners2, descriptors2 = p2["corners"], p2["descriptor"]
 
-    # Find indices of non-zero descriptors and filter them
-    non_zero_indices1 = np.nonzero(np.sum(descriptors1, axis=1))
-    non_zero_indices2 = np.nonzero(np.sum(descriptors2, axis=1))
-    descriptors1 = descriptors1[non_zero_indices1]
-    descriptors2 = descriptors2[non_zero_indices2]
+    # if debug:
+    calculateDistances(corners1, corners2, descriptors1, descriptors2)
 
-    matcher = cv2.FlannBasedMatcher_create()
-    matches = matcher.match(descriptors1, descriptors2)
-    matches = list(matches)
+    distances = np.load("distances.npy")
+    for index, corner in enumerate(corners1):
+        distance = distances[index]
+        min_value = np.min(distance)
+        threshold = min_value + thresh * (np.max(distance) - min_value)
 
-    # Sort the matches based on their distance
-    matches.sort(key=lambda x: x.distance)
-
-    # Return the top `num_threshold` matched points
-    num_threshold = int(len(matches) * threshold)
-    matched_points = [(match.queryIdx, match.trainIdx) for match in matches[:num_threshold]]
+        # Create a boolean mask for values below the threshold and Find the indices where the mask is True
+        mask = distance < threshold
+        indices = np.argwhere(mask).flatten()
+        matched_points = [(index, i) for i in indices]
 
     return matched_points
 
 
 if __name__ == "__main__":
-    # Make sure to set this to True when you want to run all the functions and detect the corners
-    debug = False
-
     # Parameters for the local descriptor
     r_min = 5
     r_max = 20
@@ -167,7 +177,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.15
+    percentage_thresh = 0.2
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
