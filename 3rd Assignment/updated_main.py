@@ -132,8 +132,8 @@ def calculateDistances(corners1, corners2, descriptors1, descriptors2):
     :param corners2: the detected corners from the second image
     :return: the Euclidean distances
     """
+    distances = np.zeros((len(corners1), len(corners2)))
     for index1, corner1 in enumerate(corners1):
-        distances = np.zeros((len(corners1), len(corners2)))
         for index2, corner2 in enumerate(corners2):
             descriptor1 = np.array(descriptors1[index1])
             descriptor2 = np.array(descriptors2[index2])
@@ -151,10 +151,11 @@ def descriptorMatching(p1, p2, thresh):
     corners1, descriptors1 = p1["corners"], p1["descriptor"]
     corners2, descriptors2 = p2["corners"], p2["descriptor"]
 
-    # if debug:
-    calculateDistances(corners1, corners2, descriptors1, descriptors2)
+    if debug:
+        calculateDistances(corners1, corners2, descriptors1, descriptors2)
 
     distances = np.load("distances.npy")
+
     for index, corner in enumerate(corners1):
         distance = distances[index]
         min_value = np.min(distance)
@@ -177,7 +178,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.2
+    percentage_thresh = 0.3
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
