@@ -1,6 +1,34 @@
 import numpy as np
 import cv2
 
+def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
+    """
+    Computes the local descriptor for each pixel in the image, using circles of different radius.
+    :param img: the given image
+    :param p: the given pixel
+    :param r_min: the minimum radius
+    :param r_max: the maximum radius
+    :param r_step: the step of the radius
+    :param num_points: the number of points in each circle
+    :return: descriptor that contains a value for each radius
+    """
+    size = (r_max - r_min) // r_step
+    d = np.zeros((1, size))
+
+    if p[0] + r_max > img.shape[1] or p[1] + r_max > img.shape[0] or p[0] - r_max < 0 or p[1] - r_max < 0:
+        return d
+
+    index = 0
+    for radius in range(r_min, r_max, r_step):
+        x_rho = []
+        for theta in range(0, 360, 360 // num_points):
+            x = int(p[0] + radius * np.cos(theta))
+            y = int(p[1] + radius * np.sin(theta))
+            x_rho.append(img[y, x])
+
+        d[0, index] = np.mean(x_rho)
+        index += 1
+    return d
 def myDetectHarrisFeatures(display_img, gray_img):
     """
     Detects all the corners in the given image using the derivatives of x-axis and y-axis.
@@ -10,7 +38,7 @@ def myDetectHarrisFeatures(display_img, gray_img):
     """
     img_gaussian = cv2.bilateralFilter(gray_img, 11, 80, 80)
     k = 0.04
-    r_thresh = 0.2
+    r_thresh = 0.1
     offset = 8
     height = gray_img.shape[0]
     width = gray_img.shape[1]
@@ -74,35 +102,6 @@ def filterClosePoints(coords, distance_threshold):
             filtered_coordinates.append((x1, y1))
 
     return filtered_coordinates
-def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
-    """
-    Computes the local descriptor for each pixel in the image, using circles of different radius.
-    :param img: the given image
-    :param p: the given pixel
-    :param r_min: the minimum radius
-    :param r_max: the maximum radius
-    :param r_step: the step of the radius
-    :param num_points: the number of points in each circle
-    :return: descriptor that contains a value for each radius
-    """
-    size = (r_max - r_min) // r_step
-    d = np.zeros((1, size))
-
-    if p[0] + r_max > img.shape[1] or p[1] + r_max > img.shape[0] or p[0] - r_max < 0 or p[1] - r_max < 0:
-        return d
-
-    index = 0
-    for radius in range(r_min, r_max, r_step):
-        x_rho = []
-        for theta in range(0, 360, 360 // num_points):
-            x = int(p[0] + radius * np.cos(theta))
-            y = int(p[1] + radius * np.sin(theta))
-            x_rho.append(img[y, x])
-
-        d[0, index] = np.mean(x_rho)
-        index += 1
-    return d
-
 def preProcessCorners(img, gray, r_min, r_max, r_step, num_per_circle, matrix_size):
     """
     Detects the corners of the image and filters the close points.
@@ -121,7 +120,39 @@ def preProcessCorners(img, gray, r_min, r_max, r_step, num_per_circle, matrix_si
     for i, point in enumerate(filtered_coordinates):
         descriptor[i, :] = myLocalDescriptor(gray, point, r_min, r_max, r_step, num_per_circle)
 
-    return filtered_coordinates, descriptor
+    return coordinates, descriptor
+
+def descriptorMatching(p1, p2, threshold):
+    """
+    Matches the descriptors of two points of the two images and returns the 30% of the matched points
+    :param p1: the dictionary of first image
+    :param p2: the dictionary of second image
+    :param threshold: the percentage of the matched points we want to return
+    :return: a list that contains the matched points
+    """
+    descriptors1 = p1["descriptor"]
+    descriptors2 = p2["descriptor"]
+    descriptors1 = np.float32(descriptors1)
+    descriptors2 = np.float32(descriptors2)
+
+    # Find indices of non-zero descriptors and filter them
+    non_zero_indices1 = np.nonzero(np.sum(descriptors1, axis=1))
+    non_zero_indices2 = np.nonzero(np.sum(descriptors2, axis=1))
+    descriptors1 = descriptors1[non_zero_indices1]
+    descriptors2 = descriptors2[non_zero_indices2]
+
+    matcher = cv2.FlannBasedMatcher_create()
+    matches = matcher.match(descriptors1, descriptors2)
+    matches = list(matches)
+
+    # Sort the matches based on their distance
+    matches.sort(key=lambda x: x.distance)
+
+    # Return the top `num_threshold` matched points
+    num_threshold = int(len(matches) * threshold)
+    matched_points = [(match.queryIdx, match.trainIdx) for match in matches[:num_threshold]]
+
+    return matched_points
 
 
 if __name__ == "__main__":
@@ -136,7 +167,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.3
+    percentage_thresh = 0.15
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
@@ -160,3 +191,13 @@ if __name__ == "__main__":
     else:
         img2 = np.load('img2.npy', allow_pickle=True).item()
 
+    # Match the descriptors
+    comb_image = cv2.imread("combined.png")
+    matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
+
+    for match in matchingPoints:
+        cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
+                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[1], int(img2["corners"][int(match[1])][1])),
+                 (0, 255, 0), 1)
+
+    cv2.imwrite("matchingPoints.jpg", comb_image)
