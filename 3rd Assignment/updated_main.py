@@ -155,16 +155,21 @@ def descriptorMatching(p1, p2, thresh):
         calculateDistances(corners1, corners2, descriptors1, descriptors2)
 
     distances = np.load("distances.npy")
+    matched_points = []
 
     for index, corner in enumerate(corners1):
         distance = distances[index]
-        min_value = np.min(distance)
-        threshold = min_value + thresh * (np.max(distance) - min_value)
+        sorted_distance = np.argsort(distance)
+        filtered_distance = sorted_distance[:int(thresh * len(sorted_distance))]
+        for filterd in filtered_distance:
+            matched_points.append((index, filterd))
+        # min_value = np.min(distance)
+        # threshold = min_value + thresh * (np.max(distance) - min_value)
 
-        # Create a boolean mask for values below the threshold and Find the indices where the mask is True
-        mask = distance < threshold
-        indices = np.argwhere(mask).flatten()
-        matched_points = [(index, i) for i in indices]
+        # # Create a boolean mask for values below the threshold and Find the indices where the mask is True
+        # mask = distance < threshold
+        # indices = np.argwhere(mask).flatten()
+        # matched_points = [(index, i) for i in indices]
 
     return matched_points
 
