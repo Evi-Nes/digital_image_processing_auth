@@ -38,7 +38,7 @@ good_matches = [[0, 0] for i in range(len(Matches))]
 
 # Ratio Test
 for i, (m, n) in enumerate(Matches):
-    if m.distance < 0.05 * n.distance:
+    if m.distance < 0.55 * n.distance:
         good_matches[i] = [1, 0]
 
 # Draw the matches using drawMatchesKnn()
@@ -48,22 +48,3 @@ Matched = cv2.drawMatchesKnn(image1, keypoints1_updated, image2, keypoints2_upda
 # Displaying the image
 cv2.imwrite('Match.jpg', Matched)
 
-# Draw lines between the matched keypoints
-for match, list in enumerate(good_matches):
-    if list == [0, 0]:
-        continue
-    kp1 = keypoints1_updated[Matches[match][0].queryIdx]
-    kp2 = keypoints2_updated[Matches[match][0].trainIdx]
-
-    # Get the keypoints for this match
-    # kp1 = keypoints1_updated[match[0].queryIdx]
-    # kp2 = keypoints2_updated[match[0].trainIdx]
-
-    # Get the coordinates of the keypoints
-    pt1 = (int(kp1.pt[0]), int(kp1.pt[1]))
-    pt2 = (int(kp2.pt[0]), int(kp2.pt[1]))
-
-    # Draw a line between the keypoints
-    cv2.line(Matched, pt1, pt2, (0, 255, 0), 1)
-
-cv2.imwrite('Matched_lines.jpg', Matched)
