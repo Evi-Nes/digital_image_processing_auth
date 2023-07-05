@@ -3,7 +3,7 @@ import cv2
 from sklearn.cluster import KMeans
 
 # Make sure to set this to True when you want to run all the functions and detect the corners
-debug = True
+debug = False
 
 def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     """
@@ -135,8 +135,8 @@ def descriptorMatching(p1, p2, thresh):
         distance = distances[index]
         sorted_distance = np.argsort(distance)
         filtered_distance = sorted_distance[:int(thresh * len(sorted_distance))]
-        for filterd in filtered_distance:
-            matched_points.append((index, filterd))
+        for filtered in filtered_distance:
+            matched_points.append((index, filtered))
 
     return matched_points
 
@@ -170,6 +170,7 @@ def myDescriptorMatching(img1, img2, thresh, image1, image2):
 
     # Need to draw only good matches, so create a mask
     good_matches = [[0, 0] for i in range(len(Matches))]
+
     # Ratio Test
     for i, (m, n) in enumerate(Matches):
         if m.distance < 0.55 * n.distance:
@@ -197,17 +198,12 @@ def myDescriptorMatching(img1, img2, thresh, image1, image2):
     cv2.imwrite('Match.jpg', Matched)
     return matched_points1, matched_points2
 
-
 def calculate_rho_theta(x1, y1, x2, y2):
-    # Calculate the differences in x and y coordinates
     delta_x = x2 - x1
     delta_y = y2 - y1
 
-    # Calculate rho and theta
     rho = np.sqrt(delta_x ** 2 + delta_y ** 2)
     theta = np.arctan2(delta_y, delta_x)
-
-    # Convert theta to degrees
     theta = np.degrees(theta)
 
     return rho, theta
@@ -247,7 +243,7 @@ if __name__ == "__main__":
         img2 = np.load('img2.npy', allow_pickle=True).item()
 
     # Match the descriptors
-    comb_image = cv2.imread("combined.png")
+    # comb_image = cv2.imread("combined.png")
     # matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
     matched_points1, matched_points2 = myDescriptorMatching(img1, img2, percentage_thresh, image1, image2)
 
@@ -257,7 +253,10 @@ if __name__ == "__main__":
         x2, y2 = matched_points2[index]
         rho, theta = calculate_rho_theta(x1, y1, x2, y2)
         rho_theta.append((rho, theta))
+
     rho_theta = np.array(rho_theta)
+    mean_values = np.mean(rho_theta, axis=0)
+    print('mean', mean_values)
 
     # Apply K-means clustering
     num_clusters = 2
@@ -275,4 +274,4 @@ if __name__ == "__main__":
         average_theta = np.mean(cluster_points[:, 1])
         similar_values.append((average_rho, average_theta))
 
-    cv2.imwrite("matchingPoints.jpg", comb_image)
+    print(similar_values)

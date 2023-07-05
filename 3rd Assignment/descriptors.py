@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 
-
 def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     """
     Computes the local descriptor for each pixel in the image, using circles of different radius.
