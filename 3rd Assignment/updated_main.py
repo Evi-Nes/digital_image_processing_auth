@@ -3,7 +3,7 @@ import cv2
 from sklearn.cluster import KMeans
 
 # Make sure to set this to True when you want to run all the functions and detect the corners
-debug = False
+debug = True
 
 def myLocalDescriptor(img, p, r_min, r_max, r_step, num_points):
     """
@@ -42,8 +42,8 @@ def myDetectHarrisFeatures(display_img, gray_img):
     """
     img_gaussian = cv2.bilateralFilter(gray_img, 11, 80, 80)
     k = 0.04
-    r_thresh = 0.30
-    offset = 8
+    r_thresh = 0.25
+    offset = 4
     height = gray_img.shape[0]
     width = gray_img.shape[1]
     matrix_R = np.zeros((height, width))
@@ -83,29 +83,6 @@ def myDetectHarrisFeatures(display_img, gray_img):
     cv2.imwrite("my_corners_img.jpg", display_img)
 
     return cornerList
-def filterClosePoints(coords, distance_threshold):
-    """
-    Removes the points that are closer than the distance_threshold with each other
-    :param coords: the coordinates of the detected corners
-    :param distance_threshold: the minimum distance between two points
-    :return: a list that contains the filtered coordinates
-    """
-    filtered_coordinates = []
-
-    for i, (x1, y1) in enumerate(coords):
-        is_close = False
-
-        for j, (x2, y2) in enumerate(coords[i + 1:], start=i + 1):
-            distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-
-            if distance < distance_threshold:
-                is_close = True
-                break
-
-        if not is_close:
-            filtered_coordinates.append((x1, y1))
-
-    return filtered_coordinates
 def preProcessCorners(img, gray, r_min, r_max, r_step, num_per_circle, matrix_size):
     """
     Detects the corners of the image and filters the close points.
@@ -117,15 +94,11 @@ def preProcessCorners(img, gray, r_min, r_max, r_step, num_per_circle, matrix_si
     coordinates = myDetectHarrisFeatures(img, gray)
     print('coords', len(coordinates))
 
-    # filtered_coordinates = filterClosePoints(coordinates, distance_threshold=5)
-    # print('filtered', len(filtered_coordinates))
-
     descriptor = np.zeros((len(coordinates), matrix_size))
     for i, point in enumerate(coordinates):
         descriptor[i, :] = myLocalDescriptor(gray, point, r_min, r_max, r_step, num_per_circle)
 
     return coordinates, descriptor
-
 def calculateDistances(corners1, corners2, descriptors1, descriptors2):
     """
     Calculates the Euclidean distances as the absolute value of the difference between the two points.
