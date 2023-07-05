@@ -108,10 +108,14 @@ def calculateDistances(corners1, corners2, descriptors1, descriptors2):
     """
     distances = np.zeros((len(corners1), len(corners2)))
     for index1, corner1 in enumerate(corners1):
+        descriptor1 = np.array(descriptors1[index1])
         for index2, corner2 in enumerate(corners2):
-            descriptor1 = np.array(descriptors1[index1])
             descriptor2 = np.array(descriptors2[index2])
-            distances[index1, index2] = np.abs(np.linalg.norm(descriptor1 - descriptor2))
+
+            if descriptor1.any() == 1e20 or descriptor2.any() == 1e20:
+                distances[index1, index2] = 1e20
+            else:
+                distances[index1, index2] = np.abs(np.linalg.norm(descriptor1 - descriptor2))
 
     np.save("distances.npy", distances)
 def descriptorMatching(p1, p2, thresh):
@@ -125,20 +129,21 @@ def descriptorMatching(p1, p2, thresh):
     corners1, descriptors1 = p1["corners"], p1["descriptor"]
     corners2, descriptors2 = p2["corners"], p2["descriptor"]
 
-    if debug:
-        calculateDistances(corners1, corners2, descriptors1, descriptors2)
+    # calculateDistances(corners1, corners2, descriptors1, descriptors2)
 
     distances = np.load("distances.npy")
     matched_points = []
+    matched_coords = []
 
     for index, corner in enumerate(corners1):
-        distance = distances[index]
-        sorted_distance = np.argsort(distance)
-        filtered_distance = sorted_distance[:int(thresh * len(sorted_distance))]
-        for filtered in filtered_distance:
+        one_corner_distances = distances[index]
+        sorted_distances = np.argsort(one_corner_distances)
+        filtered_distances = sorted_distances[:int(thresh * len(sorted_distances))]
+        for filtered in filtered_distances:
             matched_points.append((index, filtered))
+            matched_coords.append((corners1[index], corners2[filtered]))
 
-    return matched_points
+    return matched_coords
 
 def myDescriptorMatching(img1, img2, thresh, image1, image2):
     img1 = np.load('img1.npy', allow_pickle=True).item()
@@ -208,6 +213,17 @@ def calculate_rho_theta(x1, y1, x2, y2):
 
     return rho, theta
 
+def getCoordinates(matching_points, img1, img2):
+    matched1 = []
+    matched2 = []
+    for match in matching_points:
+        x1, y1 = match[0]
+        x2, y2 = match[1]
+        matched1.append((x1, y1))
+        matched2.append((x2, y2))
+
+    return matched1, matched2
+
 
 if __name__ == "__main__":
     # Parameters for the local descriptor
@@ -218,7 +234,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.3
+    percentage_thresh = 0.2
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
@@ -244,8 +260,9 @@ if __name__ == "__main__":
 
     # Match the descriptors
     # comb_image = cv2.imread("combined.png")
-    # matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
-    matched_points1, matched_points2 = myDescriptorMatching(img1, img2, percentage_thresh, image1, image2)
+    matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
+    # matched_points1, matched_points2 = myDescriptorMatching(img1, img2, percentage_thresh, image1, image2)
+    matched_points1, matched_points2 = getCoordinates(matchingPoints, img1, img2)
 
     rho_theta = []
     for index, match in enumerate(matched_points1):

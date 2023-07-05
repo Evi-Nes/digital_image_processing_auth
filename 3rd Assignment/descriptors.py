@@ -85,3 +85,4 @@ if __name__ == "__main__":
     for point in points:
         descriptor = myLocalDescriptor(grayscale, point, r_min, r_max, r_step, num_per_circle)
         descriptorUp = myLocalDescriptorUpgrade(grayscale, point, r_min, r_max, r_step, num_per_circle)
+        print('end')
