@@ -163,15 +163,65 @@ def descriptorMatching(p1, p2, thresh):
         filtered_distance = sorted_distance[:int(thresh * len(sorted_distance))]
         for filterd in filtered_distance:
             matched_points.append((index, filterd))
-        # min_value = np.min(distance)
-        # threshold = min_value + thresh * (np.max(distance) - min_value)
-
-        # # Create a boolean mask for values below the threshold and Find the indices where the mask is True
-        # mask = distance < threshold
-        # indices = np.argwhere(mask).flatten()
-        # matched_points = [(index, i) for i in indices]
 
     return matched_points
+
+def myDescriptorMatching(img1, img2, thresh, image1, image2):
+    img1 = np.load('img1.npy', allow_pickle=True).item()
+    keypoint1, descriptors1 = img1["corners"], img1["descriptor"]
+    img2 = np.load('img2.npy', allow_pickle=True).item()
+    keypoint2, descriptors2 = img2["corners"], img2["descriptor"]
+
+    descriptors1 = np.array(descriptors1, dtype=np.float32)
+    descriptors2 = np.array(descriptors2, dtype=np.float32)
+    keypoints1_updated = []
+    keypoints2_updated = []
+
+    for x, y in keypoint1:
+        keypoint = cv2.KeyPoint(x, y, 1)
+        keypoints1_updated.append(keypoint)
+
+    for x, y in keypoint2:
+        keypoint = cv2.KeyPoint(x, y, 1)
+        keypoints2_updated.append(keypoint)
+
+    # finding the nearest match with KNN algorithm
+    index_params = dict(algorithm=0, trees=20)
+    search_params = dict(checks=150)  # or pass empty dictionary
+
+    # Initialize the FlannBasedMatcher
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+    Matches = flann.knnMatch(descriptors1, descriptors2, k=2)
+
+    # Need to draw only good matches, so create a mask
+    good_matches = [[0, 0] for i in range(len(Matches))]
+    # Ratio Test
+    for i, (m, n) in enumerate(Matches):
+        if m.distance < 0.55 * n.distance:
+            good_matches[i] = [1, 0]
+
+    # Extract the matched keypoints' coordinates
+    matched_points1 = []
+    matched_points2 = []
+
+    for i, match in enumerate(Matches):
+        if good_matches[i][0] == 1:
+            idx1 = match[0].queryIdx
+            idx2 = match[0].trainIdx
+            pt1 = keypoints1_updated[idx1].pt
+            pt2 = keypoints2_updated[idx2].pt
+            matched_points1.append(pt1)
+            matched_points2.append(pt2)
+
+    # Draw the matches using drawMatchesKnn()
+    Matched = cv2.drawMatchesKnn(image1, keypoints1_updated, image2, keypoints2_updated, Matches, outImg=None,
+                                 matchColor=(0, 155, 0), singlePointColor=(0, 255, 255), matchesMask=good_matches,
+                                 flags=0)
+
+    # Displaying the image
+    cv2.imwrite('Match.jpg', Matched)
+    return matched_points1, matched_points2
 
 
 if __name__ == "__main__":
@@ -209,11 +259,15 @@ if __name__ == "__main__":
 
     # Match the descriptors
     comb_image = cv2.imread("combined.png")
-    matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
+    # matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
+    matched_points1, matched_points2 = myDescriptorMatching(img1, img2, percentage_thresh, image1, image2)
 
-    for match in matchingPoints:
-        cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
-                 (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[1], int(img2["corners"][int(match[1])][1])),
-                 (0, 255, 0), 1)
+    # for match in matchingPoints:
+    #     cv2.line(comb_image, (int(img1["corners"][int(match[0])][0]), int(img1["corners"][int(match[0])][1])),
+    #              (int(img2["corners"][int(match[1])][0]) + grayscale1.shape[1], int(img2["corners"][int(match[1])][1])),
+    #              (0, 255, 0), 1)
+    # for index, match in enumerate(matched_points1):
+    #     x1, y1 = matched_points2[index]
+    #     x2, y2 = matched_points2[index]
 
     cv2.imwrite("matchingPoints.jpg", comb_image)

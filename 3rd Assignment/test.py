@@ -35,11 +35,23 @@ Matches = flann.knnMatch(descriptors1, descriptors2, k=2)
 
 # Need to draw only good matches, so create a mask
 good_matches = [[0, 0] for i in range(len(Matches))]
-
 # Ratio Test
 for i, (m, n) in enumerate(Matches):
     if m.distance < 0.55 * n.distance:
         good_matches[i] = [1, 0]
+
+# Extract the matched keypoints' coordinates
+matched_points1 = []
+matched_points2 = []
+
+for i, match in enumerate(Matches):
+    if good_matches[i][0] == 1:
+        idx1 = match[0].queryIdx
+        idx2 = match[0].trainIdx
+        pt1 = keypoints1_updated[idx1].pt
+        pt2 = keypoints2_updated[idx2].pt
+        matched_points1.append(pt1)
+        matched_points2.append(pt2)
 
 # Draw the matches using drawMatchesKnn()
 Matched = cv2.drawMatchesKnn(image1, keypoints1_updated, image2, keypoints2_updated, Matches, outImg=None,
