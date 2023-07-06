@@ -170,10 +170,6 @@ def getCoordinates(matching_points, img1, img2):
 def getTransformedPoints(points, d, theta):
     """
     Gets the matched points and calculates the transformed points
-    :param matched_points:
-    :param d:
-    :param theta:
-    :return:
     """
     transformation_matrix = np.array([[np.cos(theta), -np.sin(theta), d],
                                       [np.sin(theta), np.cos(theta), 0],
@@ -220,7 +216,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.1
+    percentage_thresh = 0.3
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
