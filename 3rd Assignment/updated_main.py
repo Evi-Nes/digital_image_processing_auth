@@ -121,34 +121,6 @@ def calculateDistances(corners1, corners2, descriptors1, descriptors2):
                 distances[index1, index2] = np.abs(np.linalg.norm(descriptor1 - descriptor2))
 
     np.save("distances.npy", distances)
-
-# def descriptorMatching(p1, p2, thresh):
-#     """
-#     Matches the descriptors of two points of the two images and returns the 30% of the matched points
-#     :param p1: the dictionary of first image
-#     :param p2: the dictionary of second image
-#     :param thresh: the percentage of the matched points we want to return
-#     :return: a list that contains the matched points
-#     """
-#     corners1, descriptors1 = p1["corners"], p1["descriptor"]
-#     corners2, descriptors2 = p2["corners"], p2["descriptor"]
-#
-#     # calculateDistances(corners1, corners2, descriptors1, descriptors2)
-#
-#     distances = np.load("distances.npy")
-#     matched_points = []
-#     matched_coords = []
-#
-#     for index, corner in enumerate(corners1):
-#         one_corner_distances = distances[index]
-#         sorted_distances = np.argsort(one_corner_distances)
-#         filtered_distances = sorted_distances[:int(thresh * len(sorted_distances))]
-#         for filtered in filtered_distances:
-#             matched_points.append((index, filtered))
-#             matched_coords.append((corners1[index], corners2[filtered]))
-#
-#     return matched_coords
-
 def descriptorMatching(p1, p2, thresh):
     """
     Matches the descriptors of two points of the two images and returns the 30% of the matched points
@@ -173,7 +145,6 @@ def descriptorMatching(p1, p2, thresh):
     min_indices = sorted(matched_points, key=lambda x: x[2])
     min_indices = min_indices[:int(thresh * len(matched_points))]
     return min_indices
-
 def calculate_rho_theta(x1, y1, x2, y2):
     delta_x = x2 - x1
     delta_y = y2 - y1
@@ -194,45 +165,74 @@ def getCoordinates(matching_points, img1, img2):
         matched2.append((x2, y2))
 
     return matched1, matched2
-
-def getTransformedPoints(points, d, theta):
+def getTransformedPoints(matched_points, points1, d, theta):
     """
     Gets the matched points and calculates the transformed points
     """
-    transformation_matrix = np.array([[np.cos(theta), -np.sin(theta), d],
-                                      [np.sin(theta), np.cos(theta), 0],
-                                      [0, 0, 1]])
-    points = np.array(points)
-    homogeneous_points = np.column_stack((points[:, 0], np.ones(len(points))))
-    transformed_points = np.dot(homogeneous_points, transformation_matrix.T)
-    transformed_points = transformed_points[:, :2] / transformed_points[:, 2:]
+    transformed_points = []
+    cos_sin_matrix = np.array([[np.cos(theta), -np.sin(theta)],
+                               [np.sin(theta), np.cos(theta)]])
+
+    for index, match in enumerate(matched_points):
+        x1, y1 = points1[match[0]]
+        point1 = np.array([x1, y1])
+
+        transformed_point = np.dot(point1, cos_sin_matrix.T)
+        transformed_point = transformed_point + d
+        transformed_points.append(transformed_point)
 
     return transformed_points
 
-def myRansac(matched_points, img1, img2):
+def myRansac(matched_points, img1, img2, r_thresh):
     """
     Gets the matched points and compares random pairs to find the optimal transformation matrix
     :param matched_points:
     :return:
     """
-    suffled_points = np.copy(matched_points)
-    random.shuffle(suffled_points)
-    suffled_points = suffled_points[:100]
-    rho_theta = []
-    points = img1['corners'] + img2['corners']
+    inliers = []
+    outliers = []
+    distances = []
+    points1 = img1['corners']
+    points2 = img2['corners']
+    best_distance = 1e20
 
-    for index, match in enumerate(suffled_points):
-        im1_x1, img1_y1 = suffled_points[index][0]
-        im2_x1, im2_y1 = suffled_points[index][1]
-        im1_x2, im1_y2 = suffled_points[index+1][0]
-        im2_x2, im2_y2 = suffled_points[index+1][1]
+    for index, match in enumerate(matched_points):
+        new_index = index + 1
+        if index == len(matched_points) - 1:
+            new_index = 20
+
+        distances = []
+        im1_x1, img1_y1 = points1[matched_points[index][0]]
+        im2_x1, im2_y1 = points2[matched_points[index][1]]
+        im1_x2, im1_y2 = points1[matched_points[new_index][0]]
+        im2_x2, im2_y2 = points2[matched_points[new_index][1]]
+
         rho1, theta1 = calculate_rho_theta(im1_x1, img1_y1, im2_x1, im2_y1)
         rho2, theta2 = calculate_rho_theta(im1_x2, im1_y2, im2_x2, im2_y2)
         rho = (rho1 + rho2) // 2
         theta = (theta1 + theta2) // 2
-        rho_theta.append((rho, theta))
 
-        getTransformedPoints(points, rho, theta)
+        transformed_points = getTransformedPoints(matched_points, points1, rho, theta)
+        for index, point in enumerate(transformed_points):
+            x_1, y_1 = points1[matched_points[index][0]]
+            x_new, y_new = point
+            distance = np.linalg.norm(np.array([x_1, y_1]) - np.array([x_new, y_new]))
+            distances.append(distance)
+
+        if np.mean(distances) < best_distance:
+            best_distance = distance
+            best_rho = rho
+            best_theta = theta
+            inliers = []
+            outliers = []
+
+            for index, distance in enumerate(distances):
+                if distance < r_thresh:
+                    inliers.append(matched_points[index])
+                else:
+                    outliers.append(matched_points[index])
+
+    return best_rho, best_theta, inliers, outliers
 
 
 if __name__ == "__main__":
@@ -244,7 +244,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.3
+    percentage_thresh = 0.2
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
@@ -269,37 +269,8 @@ if __name__ == "__main__":
         img2 = np.load('img2.npy', allow_pickle=True).item()
 
     # Match the descriptors
-    # comb_image = cv2.imread("combined.png")
+    r = 20
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
-    # matched_points1, matched_points2 = myDescriptorMatching(img1, img2, percentage_thresh, image1, image2)
-    # matched_points1, matched_points2 = getCoordinates(matchingPoints, img1, img2)
-    myRansac(matchingPoints, img1, img2)
-
-    rho_theta = []
-    for index, match in enumerate(matched_points1):
-        x1, y1 = matched_points1[index]
-        x2, y2 = matched_points2[index]
-        rho, theta = calculate_rho_theta(x1, y1, x2, y2)
-        rho_theta.append((rho, theta))
-
-    rho_theta = np.array(rho_theta)
-    mean_values = np.mean(rho_theta, axis=0)
-    print('mean', mean_values)
-
-    # Apply K-means clustering
-    num_clusters = 2
-    kmeans = KMeans(n_clusters=num_clusters)
-    kmeans.fit(rho_theta)
-
-    # Get the cluster labels and centroids
-    labels = kmeans.labels_
-    centroids = kmeans.cluster_centers_
-    similar_values = []
-
-    for i in range(num_clusters):
-        cluster_points = rho_theta[labels == i]
-        average_rho = np.mean(cluster_points[:, 0])
-        average_theta = np.mean(cluster_points[:, 1])
-        similar_values.append((average_rho, average_theta))
-
-    print(similar_values)
+    final_rho, final_theta, final_inliers, final_outliers = myRansac(matchingPoints, img1, img2, r)
+    print("Final Rho: ", final_rho)
+    print("Final Theta: ", final_theta)
