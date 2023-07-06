@@ -110,15 +110,45 @@ def calculateDistances(corners1, corners2, descriptors1, descriptors2):
     distances = np.zeros((len(corners1), len(corners2)))
     for index1, corner1 in enumerate(corners1):
         descriptor1 = np.array(descriptors1[index1])
+        if np.any(descriptor1 > 1000000):
+            distances[index1, :] = 1e20
+            continue
         for index2, corner2 in enumerate(corners2):
             descriptor2 = np.array(descriptors2[index2])
-
-            if descriptor1.any() == 1e20 or descriptor2.any() == 1e20:
+            if np.any(descriptor2 > 1000000):
                 distances[index1, index2] = 1e20
             else:
                 distances[index1, index2] = np.abs(np.linalg.norm(descriptor1 - descriptor2))
 
     np.save("distances.npy", distances)
+
+# def descriptorMatching(p1, p2, thresh):
+#     """
+#     Matches the descriptors of two points of the two images and returns the 30% of the matched points
+#     :param p1: the dictionary of first image
+#     :param p2: the dictionary of second image
+#     :param thresh: the percentage of the matched points we want to return
+#     :return: a list that contains the matched points
+#     """
+#     corners1, descriptors1 = p1["corners"], p1["descriptor"]
+#     corners2, descriptors2 = p2["corners"], p2["descriptor"]
+#
+#     # calculateDistances(corners1, corners2, descriptors1, descriptors2)
+#
+#     distances = np.load("distances.npy")
+#     matched_points = []
+#     matched_coords = []
+#
+#     for index, corner in enumerate(corners1):
+#         one_corner_distances = distances[index]
+#         sorted_distances = np.argsort(one_corner_distances)
+#         filtered_distances = sorted_distances[:int(thresh * len(sorted_distances))]
+#         for filtered in filtered_distances:
+#             matched_points.append((index, filtered))
+#             matched_coords.append((corners1[index], corners2[filtered]))
+#
+#     return matched_coords
+
 def descriptorMatching(p1, p2, thresh):
     """
     Matches the descriptors of two points of the two images and returns the 30% of the matched points
@@ -128,23 +158,21 @@ def descriptorMatching(p1, p2, thresh):
     :return: a list that contains the matched points
     """
     corners1, descriptors1 = p1["corners"], p1["descriptor"]
-    corners2, descriptors2 = p2["corners"], p2["descriptor"]
-
+    # corners2, descriptors2 = p2["corners"], p2["descriptor"]
     # calculateDistances(corners1, corners2, descriptors1, descriptors2)
 
     distances = np.load("distances.npy")
     matched_points = []
-    matched_coords = []
 
     for index, corner in enumerate(corners1):
-        one_corner_distances = distances[index]
-        sorted_distances = np.argsort(one_corner_distances)
-        filtered_distances = sorted_distances[:int(thresh * len(sorted_distances))]
-        for filtered in filtered_distances:
-            matched_points.append((index, filtered))
-            matched_coords.append((corners1[index], corners2[filtered]))
+        corner_distances = distances[index]
+        min_value = min(corner_distances)
+        min_index = np.argmin(corner_distances)
+        matched_points.append((index, min_index, min_value))
 
-    return matched_coords
+    min_indices = sorted(matched_points, key=lambda x: x[2])
+    min_indices = min_indices[:int(thresh * len(matched_points))]
+    return min_indices
 
 def calculate_rho_theta(x1, y1, x2, y2):
     delta_x = x2 - x1
