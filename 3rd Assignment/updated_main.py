@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from sklearn.cluster import KMeans
+import random
 
 # Make sure to set this to True when you want to run all the functions and detect the corners
 debug = False
@@ -145,64 +146,6 @@ def descriptorMatching(p1, p2, thresh):
 
     return matched_coords
 
-def myDescriptorMatching(img1, img2, thresh, image1, image2):
-    img1 = np.load('img1.npy', allow_pickle=True).item()
-    keypoint1, descriptors1 = img1["corners"], img1["descriptor"]
-    img2 = np.load('img2.npy', allow_pickle=True).item()
-    keypoint2, descriptors2 = img2["corners"], img2["descriptor"]
-
-    descriptors1 = np.array(descriptors1, dtype=np.float32)
-    descriptors2 = np.array(descriptors2, dtype=np.float32)
-    keypoints1_updated = []
-    keypoints2_updated = []
-
-    for x, y in keypoint1:
-        keypoint = cv2.KeyPoint(x, y, 1)
-        keypoints1_updated.append(keypoint)
-
-    for x, y in keypoint2:
-        keypoint = cv2.KeyPoint(x, y, 1)
-        keypoints2_updated.append(keypoint)
-
-    # finding the nearest match with KNN algorithm
-    index_params = dict(algorithm=0, trees=20)
-    search_params = dict(checks=150)  # or pass empty dictionary
-
-    # Initialize the FlannBasedMatcher
-    flann = cv2.FlannBasedMatcher(index_params, search_params)
-
-    Matches = flann.knnMatch(descriptors1, descriptors2, k=2)
-
-    # Need to draw only good matches, so create a mask
-    good_matches = [[0, 0] for i in range(len(Matches))]
-
-    # Ratio Test
-    for i, (m, n) in enumerate(Matches):
-        if m.distance < 0.55 * n.distance:
-            good_matches[i] = [1, 0]
-
-    # Extract the matched keypoints' coordinates
-    matched_points1 = []
-    matched_points2 = []
-
-    for i, match in enumerate(Matches):
-        if good_matches[i][0] == 1:
-            idx1 = match[0].queryIdx
-            idx2 = match[0].trainIdx
-            pt1 = keypoints1_updated[idx1].pt
-            pt2 = keypoints2_updated[idx2].pt
-            matched_points1.append(pt1)
-            matched_points2.append(pt2)
-
-    # Draw the matches using drawMatchesKnn()
-    Matched = cv2.drawMatchesKnn(image1, keypoints1_updated, image2, keypoints2_updated, Matches, outImg=None,
-                                 matchColor=(0, 155, 0), singlePointColor=(0, 255, 255), matchesMask=good_matches,
-                                 flags=0)
-
-    # Displaying the image
-    cv2.imwrite('Match.jpg', Matched)
-    return matched_points1, matched_points2
-
 def calculate_rho_theta(x1, y1, x2, y2):
     delta_x = x2 - x1
     delta_y = y2 - y1
@@ -224,6 +167,49 @@ def getCoordinates(matching_points, img1, img2):
 
     return matched1, matched2
 
+def getTransformedPoints(points, d, theta):
+    """
+    Gets the matched points and calculates the transformed points
+    :param matched_points:
+    :param d:
+    :param theta:
+    :return:
+    """
+    transformation_matrix = np.array([[np.cos(theta), -np.sin(theta), d],
+                                      [np.sin(theta), np.cos(theta), 0],
+                                      [0, 0, 1]])
+    points = np.array(points)
+    homogeneous_points = np.column_stack((points[:, 0], np.ones(len(points))))
+    transformed_points = np.dot(homogeneous_points, transformation_matrix.T)
+    transformed_points = transformed_points[:, :2] / transformed_points[:, 2:]
+
+    return transformed_points
+
+def myRansac(matched_points, img1, img2):
+    """
+    Gets the matched points and compares random pairs to find the optimal transformation matrix
+    :param matched_points:
+    :return:
+    """
+    suffled_points = np.copy(matched_points)
+    random.shuffle(suffled_points)
+    suffled_points = suffled_points[:100]
+    rho_theta = []
+    points = img1['corners'] + img2['corners']
+
+    for index, match in enumerate(suffled_points):
+        im1_x1, img1_y1 = suffled_points[index][0]
+        im2_x1, im2_y1 = suffled_points[index][1]
+        im1_x2, im1_y2 = suffled_points[index+1][0]
+        im2_x2, im2_y2 = suffled_points[index+1][1]
+        rho1, theta1 = calculate_rho_theta(im1_x1, img1_y1, im2_x1, im2_y1)
+        rho2, theta2 = calculate_rho_theta(im1_x2, im1_y2, im2_x2, im2_y2)
+        rho = (rho1 + rho2) // 2
+        theta = (theta1 + theta2) // 2
+        rho_theta.append((rho, theta))
+
+        getTransformedPoints(points, rho, theta)
+
 
 if __name__ == "__main__":
     # Parameters for the local descriptor
@@ -234,7 +220,7 @@ if __name__ == "__main__":
     matrix_size = (r_max - r_min) // r_step
 
     # Parameter for the descriptorMatching
-    percentage_thresh = 0.2
+    percentage_thresh = 0.1
 
     # Load and Detect the corners on the first image
     image1 = cv2.imread("im1.png")
@@ -262,7 +248,8 @@ if __name__ == "__main__":
     # comb_image = cv2.imread("combined.png")
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
     # matched_points1, matched_points2 = myDescriptorMatching(img1, img2, percentage_thresh, image1, image2)
-    matched_points1, matched_points2 = getCoordinates(matchingPoints, img1, img2)
+    # matched_points1, matched_points2 = getCoordinates(matchingPoints, img1, img2)
+    myRansac(matchingPoints, img1, img2)
 
     rho_theta = []
     for index, match in enumerate(matched_points1):
