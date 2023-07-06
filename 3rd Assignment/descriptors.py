@@ -49,6 +49,7 @@ def myLocalDescriptorUpgrade(img, p, r_min, r_max, r_step, num_points):
     if p[0] + r_max > img.shape[1] or p[1] + r_max > img.shape[0] or p[0] - r_max < 0 or p[1] - r_max < 0:
         return d
 
+    index = 0
     for rho in range(r_min, r_max, r_step):
         x_rho = []
         for theta in range(0, 360, 360 // num_points):
@@ -62,7 +63,8 @@ def myLocalDescriptorUpgrade(img, p, r_min, r_max, r_step, num_points):
                 x_rho.append(img[x, y])
 
             # cv2.circle(img, (x, y), 1, (255, 0, 0))
-        d = np.append(d, np.mean(x_rho))
+        d[0, index] = np.mean(x_rho)
+        index += 1
 
     # cv2.imwrite('myDescriptorUpgrade.jpeg', img)
     return d
