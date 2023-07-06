@@ -145,26 +145,13 @@ def descriptorMatching(p1, p2, thresh):
     min_indices = sorted(matched_points, key=lambda x: x[2])
     min_indices = min_indices[:int(thresh * len(matched_points))]
     return min_indices
-def calculate_rho_theta(x1, y1, x2, y2):
-    delta_x = x2 - x1
-    delta_y = y2 - y1
-
+def calculate_rho_theta(delta_x, delta_y):
     rho = np.sqrt(delta_x ** 2 + delta_y ** 2)
     theta = np.arctan2(delta_y, delta_x)
     theta = np.degrees(theta)
 
     return rho, theta
 
-def getCoordinates(matching_points, img1, img2):
-    matched1 = []
-    matched2 = []
-    for match in matching_points:
-        x1, y1 = match[0]
-        x2, y2 = match[1]
-        matched1.append((x1, y1))
-        matched2.append((x2, y2))
-
-    return matched1, matched2
 def getTransformedPoints(matched_points, points1, d, theta):
     """
     Gets the matched points and calculates the transformed points
@@ -191,7 +178,6 @@ def myRansac(matched_points, img1, img2, r_thresh):
     """
     inliers = []
     outliers = []
-    distances = []
     points1 = img1['corners']
     points2 = img2['corners']
     best_distance = 1e20
@@ -202,17 +188,25 @@ def myRansac(matched_points, img1, img2, r_thresh):
             new_index = 20
 
         distances = []
-        im1_x1, img1_y1 = points1[matched_points[index][0]]
+        im1_x1, im1_y1 = points1[matched_points[index][0]]
         im2_x1, im2_y1 = points2[matched_points[index][1]]
         im1_x2, im1_y2 = points1[matched_points[new_index][0]]
         im2_x2, im2_y2 = points2[matched_points[new_index][1]]
 
-        rho1, theta1 = calculate_rho_theta(im1_x1, img1_y1, im2_x1, im2_y1)
-        rho2, theta2 = calculate_rho_theta(im1_x2, im1_y2, im2_x2, im2_y2)
-        rho = (rho1 + rho2) // 2
-        theta = (theta1 + theta2) // 2
+        # blue approach
+        dx1 = im1_x2 - im1_x1
+        dy1 = im1_y2 - im1_y1
+        dx2 = im2_x2 - im2_x1
+        dy2 = im2_y2 - im2_y1
 
-        transformed_points = getTransformedPoints(matched_points, points1, rho, theta)
+        rho1, theta1 = calculate_rho_theta(dx1, dy1)
+        rho2, theta2 = calculate_rho_theta(dx2, dy2)
+
+        rho = rho2 - rho1
+        theta = theta2 - theta1
+        d =[(dx1+dx2)//2, (dy1+dy2)//2]
+
+        transformed_points = getTransformedPoints(matched_points, points1, d, theta)
         for index, point in enumerate(transformed_points):
             x_1, y_1 = points1[matched_points[index][0]]
             x_new, y_new = point
@@ -221,7 +215,7 @@ def myRansac(matched_points, img1, img2, r_thresh):
 
         if np.mean(distances) < best_distance:
             best_distance = distance
-            best_rho = rho
+            best_rho = d
             best_theta = theta
             inliers = []
             outliers = []
