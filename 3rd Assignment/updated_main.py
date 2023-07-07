@@ -145,12 +145,13 @@ def descriptorMatching(p1, p2, thresh):
     min_indices = sorted(matched_points, key=lambda x: x[2])
     min_indices = min_indices[:int(thresh * len(matched_points))]
     return min_indices
-def calculate_rho_theta(delta_x, delta_y):
-    rho = np.sqrt(delta_x ** 2 + delta_y ** 2)
+def calculate_rho_theta(x1, y1, x2, y2):
+    delta_x = x2 - x1
+    delta_y = y2 - y1
     theta = np.arctan2(delta_y, delta_x)
     theta = np.degrees(theta)
 
-    return rho, theta
+    return theta
 
 def getTransformedPoints(matched_points, points1, d, theta):
     """
@@ -164,7 +165,7 @@ def getTransformedPoints(matched_points, points1, d, theta):
         x1, y1 = points1[match[0]]
         point1 = np.array([x1, y1])
 
-        transformed_point = np.dot(point1, cos_sin_matrix.T)
+        transformed_point = np.dot(cos_sin_matrix.T, point1)
         transformed_point = transformed_point + d
         transformed_points.append(transformed_point)
 
@@ -180,53 +181,44 @@ def myRansac(matched_points, img1, img2, r_thresh):
     outliers = []
     points1 = img1['corners']
     points2 = img2['corners']
-    best_distance = 1e20
+    best_score = 0
 
     for index, match in enumerate(matched_points):
-        new_index = index + 1
+        next_index = index + 1
         if index == len(matched_points) - 1:
-            new_index = 20
+            next_index = 20
 
-        distances = []
         im1_x1, im1_y1 = points1[matched_points[index][0]]
         im2_x1, im2_y1 = points2[matched_points[index][1]]
-        im1_x2, im1_y2 = points1[matched_points[new_index][0]]
-        im2_x2, im2_y2 = points2[matched_points[new_index][1]]
+        im1_x2, im1_y2 = points1[matched_points[next_index][0]]
+        im2_x2, im2_y2 = points2[matched_points[next_index][1]]
 
-        # blue approach
-        dx1 = im1_x2 - im1_x1
-        dy1 = im1_y2 - im1_y1
-        dx2 = im2_x2 - im2_x1
-        dy2 = im2_y2 - im2_y1
-
-        rho1, theta1 = calculate_rho_theta(dx1, dy1)
-        rho2, theta2 = calculate_rho_theta(dx2, dy2)
-
-        rho = rho2 - rho1
+        theta1 = calculate_rho_theta(im1_x1, im1_y1, im1_x2, im1_y2)
+        theta2 = calculate_rho_theta(im2_x1, im2_y1, im2_x2, im2_y2)
         theta = theta2 - theta1
-        d =[(dx1+dx2)//2, (dy1+dy2)//2]
+        d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
+        d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
+        d = (np.array(d2) + np.array(d1)) // 2
 
         transformed_points = getTransformedPoints(matched_points, points1, d, theta)
         for index, point in enumerate(transformed_points):
             x_1, y_1 = points1[matched_points[index][0]]
             x_new, y_new = point
             distance = np.linalg.norm(np.array([x_1, y_1]) - np.array([x_new, y_new]))
-            distances.append(distance)
 
-        if np.mean(distances) < best_distance:
-            best_distance = distance
-            best_rho = d
+            if distance < r_thresh:
+                inliers.append(matched_points[index])
+            else:
+                outliers.append(matched_points[index])
+
+        score = len(inliers) / len(matched_points)
+
+        if score > best_score:
+            best_score = score
+            best_d = d
             best_theta = theta
-            inliers = []
-            outliers = []
 
-            for index, distance in enumerate(distances):
-                if distance < r_thresh:
-                    inliers.append(matched_points[index])
-                else:
-                    outliers.append(matched_points[index])
-
-    return best_rho, best_theta, inliers, outliers
+    return best_d, best_theta, inliers, outliers
 
 
 if __name__ == "__main__":
@@ -265,6 +257,6 @@ if __name__ == "__main__":
     # Match the descriptors
     r = 20
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
-    final_rho, final_theta, final_inliers, final_outliers = myRansac(matchingPoints, img1, img2, r)
-    print("Final Rho: ", final_rho)
+    final_d, final_theta, final_inliers, final_outliers = myRansac(matchingPoints, img1, img2, r)
+    print("Final D: ", final_d)
     print("Final Theta: ", final_theta)
