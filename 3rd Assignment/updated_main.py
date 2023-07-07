@@ -194,10 +194,10 @@ def myRansac(matched_points, img1, img2, r_thresh):
         im1_x2, im1_y2 = points1[int(suffled_points[index][0])]
         im2_x2, im2_y2 = points2[int(suffled_points[index][1])]
 
-        # theta1 = calculate_rho_theta(im1_x1, im1_y1, im1_x2, im1_y2)
-        # theta2 = calculate_rho_theta(im2_x1, im2_y1, im2_x2, im2_y2)
-        # theta = np.abs(theta2 - theta1)
-        theta = 10
+        theta1 = calculate_rho_theta(im1_x1, im1_y1, im1_x2, im1_y2)
+        theta2 = calculate_rho_theta(im2_x1, im2_y1, im2_x2, im2_y2)
+        theta = np.abs(theta2 - theta1)
+
         d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
         d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
         d = (np.array(d2) + np.array(d1)) // 2
@@ -218,7 +218,7 @@ def myRansac(matched_points, img1, img2, r_thresh):
         if score > best_score:
             best_score = score
             best_d = d
-            best_theta = -theta
+            best_theta = 10
             best_inliers = []
             best_outliers = []
             best_inliers.append(inliers)
@@ -254,7 +254,6 @@ def rotate_image(image, angle):
 
     return rotated_image
 
-
 def my_stitch(im1, im2, d, theta):
     """
     Overlays two images
@@ -264,19 +263,12 @@ def my_stitch(im1, im2, d, theta):
     :return: The stitched image
     """
     dx, dy = d
-    transformed_im2 = rotate_image(im2, theta)
+    transformed_im2 = rotate_image(im2, -theta)
 
     stitched_width = max(im1.shape[1], transformed_im2.shape[1] + abs(dx))
     stitched_height = max(im1.shape[0], transformed_im2.shape[0] + abs(dy))
 
-    im1_origin = (0, 0)
     im2_origin = (dy, dx)
-    if dx < 0:
-        im1_origin += (0, abs(dx))
-        im2_origin += (0, -dx)
-    if dy < 0:
-        im1_origin += (abs(dy), 0)
-        im2_origin += (-dy, 0)
 
     translated_im2 = np.zeros((stitched_height, stitched_width, 3), dtype=np.uint8)
     for i in range(transformed_im2.shape[0]):
@@ -286,10 +278,6 @@ def my_stitch(im1, im2, d, theta):
 
     stitched = np.zeros((stitched_height, stitched_width, 3), dtype=np.uint8)
     stitched[:im1.shape[0], :im1.shape[1]] = im1
-    if dx < 0:
-        np.roll(stitched, -dx, axis=1)
-    if dy < 0:
-        np.roll(stitched, -dy, axis=0)
 
     for i in range(translated_im2.shape[0]):
         for j in range(translated_im2.shape[1]):
