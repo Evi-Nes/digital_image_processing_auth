@@ -153,7 +153,7 @@ def calculate_rho_theta(x1, y1, x2, y2):
 
     return theta
 
-def getTransformedPoints(matched_points, points1, d, theta):
+def getTransformedPoints(matched_points, points2, d, theta):
     """
     Gets the matched points and calculates the transformed points
     """
@@ -162,10 +162,10 @@ def getTransformedPoints(matched_points, points1, d, theta):
                                [np.sin(theta), np.cos(theta)]])
 
     for index, match in enumerate(matched_points):
-        x1, y1 = points1[match[0]]
-        point1 = np.array([x1, y1])
+        x_old, y_old = points2[match[1]]
+        point2 = np.array([x_old, y_old])
 
-        transformed_point = np.dot(cos_sin_matrix.T, point1)
+        transformed_point = np.dot(cos_sin_matrix.T, point2)
         transformed_point = transformed_point + d
         transformed_points.append(transformed_point)
 
@@ -177,30 +177,32 @@ def myRansac(matched_points, img1, img2, r_thresh):
     :param matched_points:
     :return:
     """
-    inliers = []
-    outliers = []
+    best_inliers = []
+    best_outliers = []
     points1 = img1['corners']
     points2 = img2['corners']
     best_score = 0
+    suffled_points = np.copy(matched_points)
+    random.shuffle(suffled_points)
 
     for index, match in enumerate(matched_points):
-        next_index = index + 1
-        if index == len(matched_points) - 1:
-            next_index = 20
+        inliers = []
+        outliers = []
 
         im1_x1, im1_y1 = points1[matched_points[index][0]]
         im2_x1, im2_y1 = points2[matched_points[index][1]]
-        im1_x2, im1_y2 = points1[matched_points[next_index][0]]
-        im2_x2, im2_y2 = points2[matched_points[next_index][1]]
+        im1_x2, im1_y2 = points1[int(suffled_points[index][0])]
+        im2_x2, im2_y2 = points2[int(suffled_points[index][1])]
 
-        theta1 = calculate_rho_theta(im1_x1, im1_y1, im1_x2, im1_y2)
-        theta2 = calculate_rho_theta(im2_x1, im2_y1, im2_x2, im2_y2)
-        theta = theta2 - theta1
+        # theta1 = calculate_rho_theta(im1_x1, im1_y1, im1_x2, im1_y2)
+        # theta2 = calculate_rho_theta(im2_x1, im2_y1, im2_x2, im2_y2)
+        # theta = np.abs(theta2 - theta1)
+        theta = 10
         d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
         d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
         d = (np.array(d2) + np.array(d1)) // 2
 
-        transformed_points = getTransformedPoints(matched_points, points1, d, theta)
+        transformed_points = getTransformedPoints(matched_points, points2, d, theta)
         for index, point in enumerate(transformed_points):
             x_1, y_1 = points1[matched_points[index][0]]
             x_new, y_new = point
@@ -216,9 +218,85 @@ def myRansac(matched_points, img1, img2, r_thresh):
         if score > best_score:
             best_score = score
             best_d = d
-            best_theta = theta
+            best_theta = -theta
+            best_inliers = []
+            best_outliers = []
+            best_inliers.append(inliers)
+            best_outliers.append(outliers)
 
-    return best_d, best_theta, inliers, outliers
+    return best_d, best_theta, best_inliers, best_outliers
+
+def rotate_image(image, angle):
+    """
+    Rotates an image about its center by the given angle
+    :param image: The input image
+    :param angle: The angle in degrees
+    :return: The rotated image
+    """
+    height, width = image.shape[:2]
+    center = (width // 2, height // 2)
+
+    # Compute the rotation matrix
+    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    # Calculate the new bounding dimensions of the rotated image
+    abs_cos = abs(rotation_matrix[0, 0])
+    abs_sin = abs(rotation_matrix[0, 1])
+    new_width = int(height * abs_sin + width * abs_cos)
+    new_height = int(height * abs_cos + width * abs_sin)
+
+    # Adjust the rotation matrix to take into account translation
+    rotation_matrix[0, 2] += (new_width - width) / 2
+    rotation_matrix[1, 2] += (new_height - height) / 2
+
+    # Perform the actual rotation and return the rotated image
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (new_width, new_height))
+
+    return rotated_image
+
+
+def my_stitch(im1, im2, d, theta):
+    """
+    Overlays two images
+    :param im1: The background image
+    :param im2: The overlay image
+    :param theta: The angle of rotation in radians
+    :return: The stitched image
+    """
+    dx, dy = d
+    transformed_im2 = rotate_image(im2, theta)
+
+    stitched_width = max(im1.shape[1], transformed_im2.shape[1] + abs(dx))
+    stitched_height = max(im1.shape[0], transformed_im2.shape[0] + abs(dy))
+
+    im1_origin = (0, 0)
+    im2_origin = (dy, dx)
+    if dx < 0:
+        im1_origin += (0, abs(dx))
+        im2_origin += (0, -dx)
+    if dy < 0:
+        im1_origin += (abs(dy), 0)
+        im2_origin += (-dy, 0)
+
+    translated_im2 = np.zeros((stitched_height, stitched_width, 3), dtype=np.uint8)
+    for i in range(transformed_im2.shape[0]):
+        for j in range(transformed_im2.shape[1]):
+            if transformed_im2[i, j].any() != 0:
+                translated_im2[i + im2_origin[0], j + im2_origin[1]] = transformed_im2[i, j, :3]
+
+    stitched = np.zeros((stitched_height, stitched_width, 3), dtype=np.uint8)
+    stitched[:im1.shape[0], :im1.shape[1]] = im1
+    if dx < 0:
+        np.roll(stitched, -dx, axis=1)
+    if dy < 0:
+        np.roll(stitched, -dy, axis=0)
+
+    for i in range(translated_im2.shape[0]):
+        for j in range(translated_im2.shape[1]):
+            if translated_im2[i, j].any() != 0:
+                stitched[i, j] = translated_im2[i, j, :3]
+
+    return stitched
 
 
 if __name__ == "__main__":
@@ -255,8 +333,12 @@ if __name__ == "__main__":
         img2 = np.load('img2.npy', allow_pickle=True).item()
 
     # Match the descriptors
-    r = 20
+    r = 50
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
     final_d, final_theta, final_inliers, final_outliers = myRansac(matchingPoints, img1, img2, r)
     print("Final D: ", final_d)
     print("Final Theta: ", final_theta)
+
+    # Stitch the images
+    stitched_image = my_stitch(image1, image2, final_d, final_theta)
+    cv2.imwrite("stitched_image.png", stitched_image)
