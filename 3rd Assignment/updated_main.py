@@ -145,14 +145,13 @@ def descriptorMatching(p1, p2, thresh):
     min_indices = sorted(matched_points, key=lambda x: x[2])
     min_indices = min_indices[:int(thresh * len(matched_points))]
     return min_indices
-def calculate_rho_theta(x1, y1, x2, y2):
+def calculate_theta(x1, y1, x2, y2):
     delta_x = x2 - x1
     delta_y = y2 - y1
     theta = np.arctan2(delta_y, delta_x)
     theta = np.degrees(theta)
 
     return theta
-
 def getTransformedPoints(matched_points, points2, d, theta):
     """
     Gets the matched points and calculates the transformed points
@@ -170,7 +169,6 @@ def getTransformedPoints(matched_points, points2, d, theta):
         transformed_points.append(transformed_point)
 
     return transformed_points
-
 def myRansac(matched_points, img1, img2, r_thresh):
     """
     Gets the matched points and compares random pairs to find the optimal transformation matrix
@@ -194,9 +192,9 @@ def myRansac(matched_points, img1, img2, r_thresh):
         im1_x2, im1_y2 = points1[int(suffled_points[index][0])]
         im2_x2, im2_y2 = points2[int(suffled_points[index][1])]
 
-        theta1 = calculate_rho_theta(im1_x1, im1_y1, im1_x2, im1_y2)
-        theta2 = calculate_rho_theta(im2_x1, im2_y1, im2_x2, im2_y2)
-        theta = np.abs(theta2 - theta1)
+        theta1 = calculate_theta(im1_x1, im1_y1, im1_x2, im1_y2)
+        theta2 = calculate_theta(im2_x1, im2_y1, im2_x2, im2_y2)
+        theta = theta2 - theta1
 
         d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
         d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
@@ -218,7 +216,7 @@ def myRansac(matched_points, img1, img2, r_thresh):
         if score > best_score:
             best_score = score
             best_d = d
-            best_theta = 10
+            best_theta = -theta
             best_inliers = []
             best_outliers = []
             best_inliers.append(inliers)
