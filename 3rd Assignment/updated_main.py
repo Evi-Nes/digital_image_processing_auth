@@ -169,7 +169,62 @@ def getTransformedPoints(matched_points, points2, d, theta):
         transformed_points.append(transformed_point)
 
     return transformed_points
-def myRansac(matched_points, img1, img2, r_thresh):
+# def myRansac(matched_points, img1, img2, r_thresh):
+#     """
+#     Gets the matched points and compares random pairs to find the optimal transformation matrix
+#     :param matched_points:
+#     :return:
+#     """
+#     best_inliers = []
+#     best_outliers = []
+#     points1 = img1['corners']
+#     points2 = img2['corners']
+#     best_score = 0
+#     suffled_points = np.copy(matched_points)
+#     random.shuffle(suffled_points)
+#
+#     for index, match in enumerate(matched_points):
+#         inliers = []
+#         outliers = []
+#
+#         im1_x1, im1_y1 = points1[matched_points[index][0]]
+#         im2_x1, im2_y1 = points2[matched_points[index][1]]
+#         im1_x2, im1_y2 = points1[int(suffled_points[index][0])]
+#         im2_x2, im2_y2 = points2[int(suffled_points[index][1])]
+#
+#         theta1 = calculate_theta(im1_x1, im1_y1, im1_x2, im1_y2)
+#         theta2 = calculate_theta(im2_x1, im2_y1, im2_x2, im2_y2)
+#         theta = theta2 - theta1
+#
+#         d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
+#         d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
+#         d = (np.array(d2) + np.array(d1)) // 2
+#
+#         transformed_points = getTransformedPoints(matched_points, points2, d, theta)
+#         for index, point in enumerate(transformed_points):
+#             x_1, y_1 = points1[matched_points[index][0]]
+#             x_new, y_new = point
+#             distance = np.linalg.norm(np.array([x_1, y_1]) - np.array([x_new, y_new]))
+#
+#             if distance < r_thresh:
+#                 inliers.append(matched_points[index])
+#             else:
+#                 outliers.append(matched_points[index])
+#
+#         score = len(inliers) / len(matched_points)
+#
+#         if score > best_score:
+#             best_score = score
+#             best_d = d
+#             best_theta = -theta
+#             best_inliers = []
+#             best_outliers = []
+#             best_inliers.append(inliers)
+#             best_outliers.append(outliers)
+#
+#     return best_d, best_theta, best_inliers, best_outliers
+
+def myRansac(matched_points, img1, img2, r_thresh, image1_width):
     """
     Gets the matched points and compares random pairs to find the optimal transformation matrix
     :param matched_points:
@@ -180,27 +235,24 @@ def myRansac(matched_points, img1, img2, r_thresh):
     points1 = img1['corners']
     points2 = img2['corners']
     best_score = 0
-    suffled_points = np.copy(matched_points)
-    random.shuffle(suffled_points)
+    shuffled_points = np.copy(matched_points)
+    random.shuffle(shuffled_points)
 
     for index, match in enumerate(matched_points):
         inliers = []
         outliers = []
 
         im1_x1, im1_y1 = points1[matched_points[index][0]]
-        im2_x1, im2_y1 = points2[matched_points[index][1]]
-        im1_x2, im1_y2 = points1[int(suffled_points[index][0])]
-        im2_x2, im2_y2 = points2[int(suffled_points[index][1])]
+        im2_x1, im2_y1 = points1[int(shuffled_points[index][1])]
+        im2_x1 = im2_x1 + image1_width
+        theta = calculate_theta(im1_x1, im1_y1, im2_x1, im2_y1)
+        theta = -theta
 
-        theta1 = calculate_theta(im1_x1, im1_y1, im1_x2, im1_y2)
-        theta2 = calculate_theta(im2_x1, im2_y1, im2_x2, im2_y2)
-        theta = theta2 - theta1
+        magnitude, angle = cv2.cartToPolar((im1_x1, im2_x1), (im1_y1, im2_y1), angleInDegrees=0)
+        magnitude = int(magnitude[0])
+        magnitudem = [magnitude, 0]
 
-        d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
-        d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
-        d = (np.array(d2) + np.array(d1)) // 2
-
-        transformed_points = getTransformedPoints(matched_points, points2, d, theta)
+        transformed_points = getTransformedPoints(matched_points, points2, magnitudem, theta)
         for index, point in enumerate(transformed_points):
             x_1, y_1 = points1[matched_points[index][0]]
             x_new, y_new = point
@@ -215,15 +267,14 @@ def myRansac(matched_points, img1, img2, r_thresh):
 
         if score > best_score:
             best_score = score
-            best_d = d
-            best_theta = -theta
+            best_d = magnitudem
+            best_theta = theta
             best_inliers = []
             best_outliers = []
             best_inliers.append(inliers)
             best_outliers.append(outliers)
 
     return best_d, best_theta, best_inliers, best_outliers
-
 def rotate_image(image, angle):
     """
     Rotates an image about its center by the given angle
@@ -319,11 +370,36 @@ if __name__ == "__main__":
         img2 = np.load('img2.npy', allow_pickle=True).item()
 
     # Match the descriptors
-    r = 50
+    r = 60
     matchingPoints = descriptorMatching(img1, img2, percentage_thresh)
-    final_d, final_theta, final_inliers, final_outliers = myRansac(matchingPoints, img1, img2, r)
+    final_d, final_theta, final_inliers, final_outliers = myRansac(matchingPoints, img1, img2, r, image1_width=image1.shape[1])
     print("Final D: ", final_d)
     print("Final Theta: ", final_theta)
+
+    # Draw the inliers and outliers
+    copy_inliers1 = np.copy(image1)
+    copy_inliers2 = np.copy(image2)
+    copy_outliers1 = np.copy(image1)
+    copy_outliers2 = np.copy(image2)
+    for inlier in final_inliers[0]:
+        point = img1["corners"][inlier[0]]
+        cv2.circle(copy_inliers1, (point[0], point[1]), 2, (0, 255, 0), 2)
+
+        point = img2["corners"][inlier[1]]
+        cv2.circle(copy_inliers2, (point[0], point[1]), 2, (0, 255, 0), 2)
+
+    cv2.imwrite("inliers_image1.png", copy_inliers1)
+    cv2.imwrite("inliers_image2.png", copy_inliers2)
+
+    for outlier in final_outliers[0]:
+        point = img1["corners"][outlier[0]]
+        cv2.circle(copy_outliers1, (point[0], point[1]), 2, (255, 0, 0), 2)
+
+        point = img2["corners"][outlier[1]]
+        cv2.circle(copy_outliers2, (point[0], point[1]), 2, (255, 0, 0), 2)
+
+    cv2.imwrite("outliers_image1.png", copy_outliers1)
+    cv2.imwrite("outliers_image2.png", copy_outliers2)
 
     # Stitch the images
     stitched_image = my_stitch(image1, image2, final_d, final_theta)
