@@ -130,8 +130,9 @@ def descriptorMatching(p1, p2, thresh):
     :return: a list that contains the matched points
     """
     corners1, descriptors1 = p1["corners"], p1["descriptor"]
-    # corners2, descriptors2 = p2["corners"], p2["descriptor"]
-    # calculateDistances(corners1, corners2, descriptors1, descriptors2)
+    if debug:
+        corners2, descriptors2 = p2["corners"], p2["descriptor"]
+        calculateDistances(corners1, corners2, descriptors1, descriptors2)
 
     distances = np.load("distances.npy")
     matched_points = []
@@ -169,66 +170,10 @@ def getTransformedPoints(matched_points, points2, d, theta):
         transformed_points.append(transformed_point)
 
     return transformed_points
-# def myRansac(matched_points, img1, img2, r_thresh):
-#     """
-#     Gets the matched points and compares random pairs to find the optimal transformation matrix
-#     :param matched_points:
-#     :return:
-#     """
-#     best_inliers = []
-#     best_outliers = []
-#     points1 = img1['corners']
-#     points2 = img2['corners']
-#     best_score = 0
-#     suffled_points = np.copy(matched_points)
-#     random.shuffle(suffled_points)
-#
-#     for index, match in enumerate(matched_points):
-#         inliers = []
-#         outliers = []
-#
-#         im1_x1, im1_y1 = points1[matched_points[index][0]]
-#         im2_x1, im2_y1 = points2[matched_points[index][1]]
-#         im1_x2, im1_y2 = points1[int(suffled_points[index][0])]
-#         im2_x2, im2_y2 = points2[int(suffled_points[index][1])]
-#
-#         theta1 = calculate_theta(im1_x1, im1_y1, im1_x2, im1_y2)
-#         theta2 = calculate_theta(im2_x1, im2_y1, im2_x2, im2_y2)
-#         theta = theta2 - theta1
-#
-#         d1 = [(im1_x1-im2_x1), (im1_y1-im2_y1)]
-#         d2 = [(im1_x2-im2_x2), (im1_y2-im2_y2)]
-#         d = (np.array(d2) + np.array(d1)) // 2
-#
-#         transformed_points = getTransformedPoints(matched_points, points2, d, theta)
-#         for index, point in enumerate(transformed_points):
-#             x_1, y_1 = points1[matched_points[index][0]]
-#             x_new, y_new = point
-#             distance = np.linalg.norm(np.array([x_1, y_1]) - np.array([x_new, y_new]))
-#
-#             if distance < r_thresh:
-#                 inliers.append(matched_points[index])
-#             else:
-#                 outliers.append(matched_points[index])
-#
-#         score = len(inliers) / len(matched_points)
-#
-#         if score > best_score:
-#             best_score = score
-#             best_d = d
-#             best_theta = -theta
-#             best_inliers = []
-#             best_outliers = []
-#             best_inliers.append(inliers)
-#             best_outliers.append(outliers)
-#
-#     return best_d, best_theta, best_inliers, best_outliers
-
 def myRansac(matched_points, img1, img2, r_thresh, image1_width):
     """
     Gets the matched points and compares random pairs to find the optimal transformation matrix
-    :param matched_points:
-    :return:
+    :return: best_d, best_theta, best_inliers, best_outliers
     """
     best_inliers = []
     best_outliers = []
@@ -377,7 +322,6 @@ if __name__ == "__main__":
     print("Final Theta: ", final_theta)
 
     # Draw the inliers and outliers
-    combined_image = cv2.imread("combined.png")
     copy_inliers1 = np.copy(image1)
     copy_inliers2 = np.copy(image2)
     copy_outliers1 = np.copy(image1)
@@ -389,9 +333,6 @@ if __name__ == "__main__":
         point2 = img2["corners"][inlier[1]]
         cv2.circle(copy_inliers2, (point2[0], point2[1]), 2, (0, 255, 0), 2)
 
-        cv2.line(combined_image, (point1[0], point1[1]), (point2[0] + image1.shape[1], point2[1]), (0, 255, 0), 2)
-
-    cv2.imwrite("combined_inliers.png", combined_image)
     cv2.imwrite("inliers_image1.png", copy_inliers1)
     cv2.imwrite("inliers_image2.png", copy_inliers2)
 
