@@ -377,17 +377,21 @@ if __name__ == "__main__":
     print("Final Theta: ", final_theta)
 
     # Draw the inliers and outliers
+    combined_image = cv2.imread("combined.png")
     copy_inliers1 = np.copy(image1)
     copy_inliers2 = np.copy(image2)
     copy_outliers1 = np.copy(image1)
     copy_outliers2 = np.copy(image2)
     for inlier in final_inliers[0]:
-        point = img1["corners"][inlier[0]]
-        cv2.circle(copy_inliers1, (point[0], point[1]), 2, (0, 255, 0), 2)
+        point1 = img1["corners"][inlier[0]]
+        cv2.circle(copy_inliers1, (point1[0], point1[1]), 2, (0, 255, 0), 2)
 
-        point = img2["corners"][inlier[1]]
-        cv2.circle(copy_inliers2, (point[0], point[1]), 2, (0, 255, 0), 2)
+        point2 = img2["corners"][inlier[1]]
+        cv2.circle(copy_inliers2, (point2[0], point2[1]), 2, (0, 255, 0), 2)
 
+        cv2.line(combined_image, (point1[0], point1[1]), (point2[0] + image1.shape[1], point2[1]), (0, 255, 0), 2)
+
+    cv2.imwrite("combined_inliers.png", combined_image)
     cv2.imwrite("inliers_image1.png", copy_inliers1)
     cv2.imwrite("inliers_image2.png", copy_inliers2)
 
