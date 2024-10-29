@@ -1,9 +1,8 @@
 *.jpg
 *.png
 *.jpeg
-*.pdf
 *.txt
 *.asv
-RawImage.DNG
+*v1.pdf
 dip-2023-hw1.v2.0.pdf
 dig_image_venv/
